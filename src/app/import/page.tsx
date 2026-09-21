@@ -51,7 +51,7 @@ export default function ImportPage() {
 
           <div 
             className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center gap-4 transition-colors
-              ${dragActive ? "border-uniblue bg-blue-50" : "border-gray-300 bg-gray-50"}
+              ${dragActive ? "border-uniblack bg-blue-50" : "border-gray-300 bg-gray-50"}
               ${file ? "border-green-400 bg-green-50" : ""}
             `}
             onDragEnter={handleDrag}
@@ -69,7 +69,7 @@ export default function ImportPage() {
               </>
             ) : (
               <>
-                <UploadCloud size={48} className="text-uniblue" />
+                <UploadCloud size={48} className="text-uniblack" />
                 <div className="text-center">
                   <p className="font-semibold text-gray-800">Datei hierher ziehen oder klicken</p>
                   <p className="text-sm text-gray-500">Moodle CSV-Format (.csv)</p>
@@ -80,7 +80,7 @@ export default function ImportPage() {
           </div>
 
           <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg flex items-start gap-3">
-            <ShieldCheck className="text-uniblue mt-0.5" size={20} />
+            <ShieldCheck className="text-uniblack mt-0.5" size={20} />
             <div className="text-sm text-blue-900">
               <p className="font-semibold">Datenschutz-Garantie</p>
               <p className="mt-1">Namen, E-Mail-Adressen und Matrikelnummern werden auf Ihrem Gerät entfernt. Nur pseudonymisierte Antworten (z.B. P-001) und die eigentlichen Texte erreichen den Auswertungsserver.</p>
@@ -90,7 +90,7 @@ export default function ImportPage() {
           {file && !isProcessing && (
             <button 
               onClick={simulateProcessing}
-              className="w-full bg-uniblue hover:bg-unibluedark text-white font-medium py-3 rounded-lg transition-colors flex justify-center items-center gap-2"
+              className="w-full bg-uniblack hover:bg-gray-900 text-white font-medium py-3 rounded-lg transition-colors flex justify-center items-center gap-2"
             >
               Lokale Pseudonymisierung starten
             </button>
@@ -98,7 +98,7 @@ export default function ImportPage() {
 
           {isProcessing && (
             <div className="w-full bg-gray-100 py-3 rounded-lg flex justify-center items-center gap-2 font-medium text-gray-600">
-              <span className="animate-spin h-5 w-5 border-2 border-uniblue border-t-transparent rounded-full"></span>
+              <span className="animate-spin h-5 w-5 border-2 border-uniblack border-t-transparent rounded-full"></span>
               Daten werden lokal verarbeitet...
             </div>
           )}
@@ -133,7 +133,7 @@ export default function ImportPage() {
             </button>
             <p className="text-xs text-gray-500">Bitte bewahren Sie diese Tabelle lokal auf, um später die Noten den Studierenden zuordnen zu können.</p>
             
-            <button className="w-full mt-4 bg-uniblue hover:bg-unibluedark text-white font-medium py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
+            <button className="w-full mt-4 bg-uniblack hover:bg-gray-900 text-white font-medium py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
               Probelauf (KI) starten <ArrowRight size={18} />
             </button>
           </div>

@@ -43,9 +43,9 @@ Dafür müsste A durch B einen Schaden erlitten haben, B müsste diesen kausal v
         {/* Left column: Answer text */}
         <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="flex border-b border-gray-200 bg-gray-50">
-            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 1 ? 'border-b-2 border-uniblue text-uniblue' : 'text-gray-500'}`} onClick={() => setActiveTab(1)}>Frage 1 (Schadenersatz)</button>
-            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 2 ? 'border-b-2 border-uniblue text-uniblue' : 'text-gray-500'}`} onClick={() => setActiveTab(2)}>Frage 2 (Gewährleistung)</button>
-            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 3 ? 'border-b-2 border-uniblue text-uniblue' : 'text-gray-500'}`} onClick={() => setActiveTab(3)}>Frage 3 (Bereicherung)</button>
+            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 1 ? 'border-b-2 border-uniblack text-uniblack' : 'text-gray-500'}`} onClick={() => setActiveTab(1)}>Frage 1 (Schadenersatz)</button>
+            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 2 ? 'border-b-2 border-uniblack text-uniblack' : 'text-gray-500'}`} onClick={() => setActiveTab(2)}>Frage 2 (Gewährleistung)</button>
+            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 3 ? 'border-b-2 border-uniblack text-uniblack' : 'text-gray-500'}`} onClick={() => setActiveTab(3)}>Frage 3 (Bereicherung)</button>
           </div>
           
           <div className="p-6 flex-1 overflow-y-auto leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: mockAnswer }}>
@@ -56,7 +56,7 @@ Dafür müsste A durch B einen Schaden erlitten haben, B müsste diesen kausal v
         <div className="w-96 flex flex-col bg-gray-50 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex-shrink-0">
           <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
             <h2 className="font-semibold text-gray-800">Punktevergabe F1</h2>
-            <div className="text-xl font-bold text-uniblue">{Object.values(punkte).reduce((a,b)=>a+b,0)} <span className="text-sm text-gray-500 font-normal">/ 18 Pkt</span></div>
+            <div className="text-xl font-bold text-uniblack">{Object.values(punkte).reduce((a,b)=>a+b,0)} <span className="text-sm text-gray-500 font-normal">/ 18 Pkt</span></div>
           </div>
 
           <div className="p-0 overflow-y-auto flex-1 divide-y divide-gray-200">

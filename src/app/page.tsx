@@ -11,7 +11,7 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link href="/pruefungen/neu" className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center gap-3">
-          <div className="p-3 bg-blue-50 text-uniblue rounded-full">
+          <div className="p-3 bg-blue-50 text-uniblack rounded-full">
             <FilePlus2 size={24} />
           </div>
           <h2 className="font-semibold text-gray-800">Prüfung anlegen</h2>
@@ -70,7 +70,7 @@ export default function Home() {
                 </td>
                 <td className="px-6 py-4 text-gray-600">300</td>
                 <td className="px-6 py-4 text-right">
-                  <Link href="/review" className="text-uniblue hover:underline font-medium">Weiter prüfen</Link>
+                  <Link href="/review" className="text-uniblack hover:underline font-medium">Weiter prüfen</Link>
                 </td>
               </tr>
               <tr className="hover:bg-gray-50">
