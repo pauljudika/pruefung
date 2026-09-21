@@ -41,10 +41,10 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-800">
-        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 hover:text-uniyellow transition-colors cursor-pointer">
+        <Link href="/einstellungen" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 hover:text-uniyellow transition-colors">
           <Settings size={20} />
           <span className="font-medium">Einstellungen</span>
-        </div>
+        </Link>
         <div className="mt-4 px-3 text-xs text-gray-400">
           Angemeldet als:<br/>
           <span className="font-semibold text-white">Prof. Dr. Storr</span>
