@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Schwarzer Hintergrund mit leichten Rundungen -->
+  <rect width="100" height="100" rx="24" fill="#000000"/>
+  
+  <!-- Dokumenten-Linien (angedeutet) -->
+  <line x1="25" y1="30" x2="60" y2="30" stroke="#333333" stroke-width="6" stroke-linecap="round"/>
+  <line x1="25" y1="45" x2="50" y2="45" stroke="#333333" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Fetter gelber Haken (Bewertung/Check) -->
+  <path d="M25 65 L45 80 L80 40" stroke="#ffd500" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- KI-Sparkle / Stern (oben rechts) -->
+  <path d="M75 15 L78 24 L87 27 L78 30 L75 39 L72 30 L63 27 L72 24 Z" fill="#ffffff"/>
+</svg>
