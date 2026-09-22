@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, X, AlertTriangle, MessageSquare, ChevronLeft, ChevronRight, Save } from "lucide-react";
+import { Check, X, AlertTriangle, MessageSquare, ChevronLeft, ChevronRight, ShieldAlert, Fingerprint, Code, Bot } from "lucide-react";
 
 export default function ReviewPage() {
-  const [activeTab, setActiveTab] = useState(1);
+  const [activeTab, setActiveTab] = useState(0);
   const [punkte, setPunkte] = useState({
     p1: 2, p2: 1, p3: 0, p4: 4, p5: 2
   });
@@ -25,14 +25,19 @@ Dafür müsste A durch B einen Schaden erlitten haben, B müsste diesen kausal v
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Review & Freigabe</h1>
-          <p className="text-gray-500 mt-1">Prüfung: Bürgerliches Recht I — Arbeit: <span className="font-mono font-bold text-gray-700">P-0142</span></p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-gray-500">Prüfung: Bürgerliches Recht I — Arbeit: <span className="font-mono font-bold text-gray-700">P-0142</span></p>
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold flex items-center gap-1">
+              <ShieldAlert size={12} /> BETRUGSVERDACHT
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="p-2 border border-gray-300 rounded hover:bg-gray-50"><ChevronLeft size={20}/></button>
           <span className="text-sm font-medium">142 / 300</span>
           <button className="p-2 border border-gray-300 rounded hover:bg-gray-50"><ChevronRight size={20}/></button>
           <div className="w-px h-6 bg-gray-300 mx-2"></div>
-          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium">
+          <button className="bg-gray-300 text-gray-500 cursor-not-allowed px-4 py-2 rounded-lg flex items-center gap-2 font-medium">
             <Check size={18} />
             Arbeit freigeben
           </button>
@@ -40,20 +45,80 @@ Dafür müsste A durch B einen Schaden erlitten haben, B müsste diesen kausal v
       </div>
 
       <div className="flex gap-6 h-full overflow-hidden">
-        {/* Left column: Answer text */}
+        {/* Left column: Content */}
         <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="flex border-b border-gray-200 bg-gray-50">
-            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 1 ? 'border-b-2 border-uniblack text-uniblack' : 'text-gray-500'}`} onClick={() => setActiveTab(1)}>Frage 1 (Schadenersatz)</button>
-            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 2 ? 'border-b-2 border-uniblack text-uniblack' : 'text-gray-500'}`} onClick={() => setActiveTab(2)}>Frage 2 (Gewährleistung)</button>
-            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 3 ? 'border-b-2 border-uniblack text-uniblack' : 'text-gray-500'}`} onClick={() => setActiveTab(3)}>Frage 3 (Bereicherung)</button>
+            <button className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === 0 ? 'border-b-2 border-uniyellow text-uniblack bg-white' : 'text-gray-500 hover:text-gray-700'}`} onClick={() => setActiveTab(0)}>
+              <ShieldAlert size={16} className={activeTab === 0 ? 'text-red-500' : 'text-gray-400'} />
+              Sicherheits-Analyse
+            </button>
+            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 1 ? 'border-b-2 border-uniyellow text-uniblack bg-white' : 'text-gray-500 hover:text-gray-700'}`} onClick={() => setActiveTab(1)}>Frage 1</button>
+            <button className={`px-4 py-3 font-medium text-sm ${activeTab === 2 ? 'border-b-2 border-uniyellow text-uniblack bg-white' : 'text-gray-500 hover:text-gray-700'}`} onClick={() => setActiveTab(2)}>Frage 2</button>
           </div>
           
-          <div className="p-6 flex-1 overflow-y-auto leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: mockAnswer }}>
+          <div className="p-6 flex-1 overflow-y-auto">
+            {activeTab === 0 ? (
+              <div className="max-w-2xl mx-auto mt-4 space-y-6">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
+                    <AlertTriangle size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">Auffälligkeiten erkannt</h2>
+                  <p className="text-gray-500 mt-2">Das System hat vor der Korrektur den Text auf Täuschungsversuche geprüft. Bitte sehen Sie sich die rot markierten Bereiche genauer an, bevor Sie bewerten.</p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* KI Score */}
+                  <div className="p-4 border-2 border-red-200 bg-red-50 rounded-lg flex items-start gap-4">
+                    <Bot className="text-red-600 mt-1" size={24} />
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <h3 className="font-bold text-red-900">KI-Text Wahrscheinlichkeit</h3>
+                        <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">85%</span>
+                      </div>
+                      <p className="text-sm text-red-800">Die Perplexität und Struktur dieses Textes deuten stark auf die Verwendung eines Large Language Models (z.B. ChatGPT oder Claude) hin. Hohe Vorhersehbarkeit der Sätze.</p>
+                    </div>
+                  </div>
+
+                  {/* Prompt Injection */}
+                  <div className="p-4 border border-green-200 bg-green-50 rounded-lg flex items-start gap-4">
+                    <Code className="text-green-600 mt-1" size={24} />
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <h3 className="font-bold text-green-900">Prompt Injections</h3>
+                        <span className="text-green-700 text-sm font-bold flex items-center gap-1"><Check size={16}/> Unauffällig</span>
+                      </div>
+                      <p className="text-sm text-green-800">Keine versteckten Befehle an die Korrektur-KI im Text gefunden.</p>
+                    </div>
+                  </div>
+
+                  {/* Formatierung / Copy Paste */}
+                  <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg flex items-start gap-4">
+                    <Fingerprint className="text-yellow-600 mt-1" size={24} />
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <h3 className="font-bold text-yellow-900">Formatierung & Paste-Check</h3>
+                        <span className="text-yellow-700 text-sm font-bold flex items-center gap-1"><AlertTriangle size={16}/> Warnung</span>
+                      </div>
+                      <p className="text-sm text-yellow-800">Verdächtiges Einfüge-Verhalten. Der Text enthält Formatierungs-Fragmente (HTML-Tags), die typischerweise beim Kopieren aus externen Webseiten entstehen.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-200 flex justify-center">
+                  <button className="bg-uniblack text-white px-6 py-2 rounded-lg font-medium hover:bg-gray-800" onClick={() => setActiveTab(1)}>
+                    Trotzdem zur Bewertung (Frage 1)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: mockAnswer }}></div>
+            )}
           </div>
         </div>
 
-        {/* Right column: Grading criteria */}
-        <div className="w-96 flex flex-col bg-gray-50 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex-shrink-0">
+        {/* Right column: Grading criteria (only show if active tab > 0) */}
+        <div className={`w-96 flex flex-col bg-gray-50 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex-shrink-0 transition-opacity ${activeTab === 0 ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
             <h2 className="font-semibold text-gray-800">Punktevergabe F1</h2>
             <div className="text-xl font-bold text-uniblack">{Object.values(punkte).reduce((a,b)=>a+b,0)} <span className="text-sm text-gray-500 font-normal">/ 18 Pkt</span></div>
