@@ -249,6 +249,21 @@ const pruefeUnsichtbar: Pruefung = (text) => {
     });
   }
 
+  // Unicode-Bindestriche — u. a. in Ausgaben aktueller GPT-Modelle ("KI‑Modell")
+  const binde = alle(text, /[\u2010\u2011]/);
+  if (binde.length) {
+    funde.push({
+      id: "unicode-bindestrich",
+      kategorie: "wasserzeichen",
+      schwere: "mittel",
+      titel: `${binde.length}× Unicode-Bindestrich (U+2011/U+2010)`,
+      detail:
+        "Sieht aus wie ein normaler Bindestrich, ist aber ein Sonderzeichen, das sich über die Tastatur nicht eingeben lässt. Es taucht u. a. in Ausgaben aktueller ChatGPT-Modelle auf (z. B. „KI‑Modell“, „E‑Mail“).",
+      stellen: binde,
+      belege: binde.slice(0, 3).map((s) => ausschnitt(text, s, 12)),
+    });
+  }
+
   // Sonstige Spezial-Leerzeichen
   const spaces = alle(text, /[ -  　]/);
   if (spaces.length) {
@@ -390,6 +405,8 @@ const CHAT_HOCH: [RegExp, string][] = [
   [/\bIch hoffe,? (?:das|dies|diese \w+) (?:hilft|hat geholfen|war hilfreich)/i, "Chat-Schlussformel"],
   [/\b(?:Möchtest du|Möchten Sie|Soll ich|Sollen wir),? (?:dass ich|noch|auch|eine|weitere|das)\b[^?\n]{0,80}\?/i, "Rückfrage an den Nutzer"],
   [/\b(?:Lass|Lassen Sie) (?:mich|es mich) wissen\b/i, "Chat-Schlussformel"],
+  [/\b(?:Wenn|Falls) (?:du|Sie) (?:willst|möchtest|möchten|magst|magst du|es brauchst|das brauchst),? (?:kann|könnte|mache|schreibe|erstelle|formuliere) ich\b/i, "Chat-Angebot („Wenn du willst, kann ich …“)"],
+  [/\b(?:Sag|Sagen Sie) (?:mir )?(?:einfach )?Bescheid\b|\bIch kann (?:dir|Ihnen) (?:auch|gerne|gern)\b/i, "Chat-Angebot"],
   [/\b(?:Let me know|I hope this helps|Certainly!|Sure! Here|Here is a|Here's a)\b/i, "englische Chat-Formel"],
   [/\b(?:Stand meines Wissens|meines Wissensstand|knowledge cutoff|Trainingsdaten)\b/i, "Verweis auf Trainingsstand"],
   [/\b(?:keine|ersetzt keine) (?:individuelle )?Rechtsberatung\b|\bich bin kein(?:e)? (?:Rechts)?(?:anwalt|Anwältin|Jurist)/i, "Haftungs-Hinweis eines Chatbots"],
@@ -672,6 +689,35 @@ const pruefeStil: Pruefung = (text) => {
         schwere: "info",
         titel: "Sehr gleichförmige Satzlängen",
         detail: `Die Sätze sind auffällig gleich lang (Ø ${mittel.toFixed(1)} Wörter, Streuung ${(cv * 100).toFixed(0)} %). Menschliche Texte wechseln meist stärker zwischen kurzen und langen Sätzen. Allein kein belastbares Indiz.`,
+        stellen: [],
+      });
+    }
+  }
+
+  // Gliederung einer Chat-Antwort, die als Klartext eingefügt wurde
+  const etiketten = alle(text, /^(?:\d+[.)]\s*)?[A-ZÄÖÜ][\p{L} -]{1,40}:\s+\S/mu);
+  const listen = alle(text, /^[ \t]*(?:[-*]|\d+\))[ \t]+\S/m);
+  if (etiketten.length >= 3 || listen.length >= 4) {
+    funde.push({
+      id: "chat-gliederung",
+      kategorie: "stil",
+      schwere: etiketten.length >= 3 && listen.length >= 2 ? "mittel" : "info",
+      titel: "Gliederung im Stil einer Chat-Antwort",
+      detail: `${etiketten.length} Absätze beginnen mit „Stichwort: …“, ${listen.length} Zeilen sind Spiegelstriche oder „1)“-Aufzählungen. So sehen Chat-Antworten aus, wenn ihr Fettdruck beim Kopieren verloren geht. In handschriftlich formulierten Falllösungen selten.`,
+      stellen: [...etiketten, ...listen],
+    });
+  }
+
+  // Übergangswörter am Satzanfang — KI-Texte verketten Sätze auffallend gleichförmig
+  if (s.length >= 8) {
+    const uebergang = s.filter((x) => /^(?:Zudem|Darüber hinaus|Außerdem|Ferner|Gleichzeitig|Letztlich|Insbesondere|Dabei|Somit|Folglich|Zusammenfassend|Insgesamt|Allerdings|Jedoch|Daher|Damit|Hierbei|Ebenso|Zugleich)\b/.test(x)).length;
+    if (uebergang / s.length >= 0.4) {
+      funde.push({
+        id: "uebergaenge",
+        kategorie: "stil",
+        schwere: "info",
+        titel: `${uebergang} von ${s.length} Sätzen beginnen mit Übergangswörtern`,
+        detail: "„Zudem“, „Darüber hinaus“, „Somit“ … am Satzanfang in dieser Dichte ist typisch für KI-Texte. Allein kein Indiz.",
         stellen: [],
       });
     }

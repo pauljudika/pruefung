@@ -8,7 +8,7 @@ import {
 import { pruefeText, KATEGORIE_INFO, ZEICHEN_NAMEN, type Fund, type Kategorie, type Modus, type Schwere } from "@/lib/integritaet/pruefe";
 import { liesDocx } from "@/lib/integritaet/docx";
 import { liesPdf } from "@/lib/integritaet/pdf";
-import { herkunftAusHtml, fundAusHerkunft, type Herkunft } from "@/lib/integritaet/zwischenablage";
+import { zwischenablageLesen, herkunftBestimmen, fundAusHerkunft, zeicheninventar, type Zwischenablage } from "@/lib/integritaet/zwischenablage";
 import { BEISPIELE } from "@/lib/integritaet/beispiele";
 
 const KAT_STIL: Record<Kategorie, { icon: typeof Bot; mark: string; chip: string }> = {
@@ -116,6 +116,86 @@ function MarkierterText({ text, funde, fokus }: { text: string; funde: Fund[]; f
   );
 }
 
+// ───────── Diagnose (für Tests mit echten Quellen) ─────────
+
+function Diagnose({ text, ablage, funde }: { text: string; ablage: Zwischenablage | null; funde: string[] }) {
+  const [kopiert, setKopiert] = useState(false);
+  const inventar = useMemo(() => zeicheninventar(text), [text]);
+  const bericht = () =>
+    JSON.stringify(
+      {
+        erstellt: new Date().toISOString(),
+        zwischenablage: ablage
+          ? {
+              typen: ablage.typen,
+              groessen: Object.fromEntries(Object.entries(ablage.daten).map(([k, v]) => [k, v.length])),
+              html: ablage.daten["text/html"]?.slice(0, 6000),
+              rtf: (ablage.daten["text/rtf"] ?? ablage.daten["public.rtf"])?.slice(0, 3000),
+              andere: Object.fromEntries(Object.entries(ablage.daten).filter(([k]) => !["text/plain", "text/html", "text/rtf"].includes(k)).map(([k, v]) => [k, v.slice(0, 1000)])),
+            }
+          : null,
+        sonderzeichen: inventar.map((z) => `${z.code} ${z.name} ×${z.anzahl}`),
+        funde,
+        textanfang: text.slice(0, 400),
+      },
+      null,
+      2,
+    );
+  return (
+    <details className="rounded-xl border border-gray-200 bg-white text-sm">
+      <summary className="cursor-pointer px-4 py-3 font-semibold text-gray-700">Technische Details</summary>
+      <div className="px-4 pb-4 space-y-3 text-xs">
+        <div>
+          <div className="font-semibold text-gray-600 mb-1">Zwischenablage</div>
+          {ablage ? (
+            <ul className="space-y-0.5 font-mono">
+              {ablage.typen.map((t) => (
+                <li key={t}>{t} <span className="text-gray-400">({(ablage.daten[t] ?? "").length} Zeichen)</span></li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-400">Nur beim Einfügen mit Strg/Cmd + V verfügbar.</p>
+          )}
+        </div>
+        <div>
+          <div className="font-semibold text-gray-600 mb-1">Sonderzeichen im Text</div>
+          {inventar.length ? (
+            <table className="font-mono">
+              <tbody>
+                {inventar.slice(0, 25).map((z) => (
+                  <tr key={z.code}>
+                    <td className="pr-3">{ZEICHEN_NAMEN[z.zeichen] ? `⟨${ZEICHEN_NAMEN[z.zeichen]}⟩` : z.zeichen}</td>
+                    <td className="pr-3 text-gray-500">{z.code}</td>
+                    <td className="pr-3 text-gray-500">{z.name}</td>
+                    <td>×{z.anzahl}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-gray-400">Keine — nur Tastaturzeichen.</p>
+          )}
+        </div>
+        <button
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(bericht());
+              setKopiert(true);
+              setTimeout(() => setKopiert(false), 2000);
+            } catch {
+              setKopiert(false);
+            }
+          }}
+          className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50"
+        >
+          {kopiert ? "Kopiert ✓" : "Diagnose-Bericht kopieren"}
+        </button>
+        <p className="text-gray-400">Enthält Formate, Sonderzeichen und den Textanfang — zum Nachschärfen der Erkennung.</p>
+      </div>
+    </details>
+  );
+}
+
 // ───────── Seite ─────────
 
 type Dokument = { datei: string; art: "Word" | "PDF"; funde: Fund[]; meta: [string, string][] };
@@ -130,7 +210,9 @@ export default function PruefenPage() {
   const [text, setText] = useState("");
   const [modus, setModus] = useState<Modus>("online");
   const [docx, setDocx] = useState<Dokument | null>(null);
-  const [herkunft, setHerkunft] = useState<Herkunft | null>(null);
+  const [ablage, setAblage] = useState<Zwischenablage | null>(null);
+  const herkunft = useMemo(() => herkunftBestimmen(ablage), [ablage]);
+  const setHerkunft = (x: null) => setAblage(x);
   const [ansicht, setAnsicht] = useState<"eingabe" | "markiert">("eingabe");
   const [fokus, setFokus] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -313,7 +395,7 @@ export default function PruefenPage() {
                 if (docx) setDocx(null); // Positionen der Datei stimmen nach Bearbeitung nicht mehr
               }}
               onPaste={(e) => {
-                setHerkunft(herkunftAusHtml(e.clipboardData.getData("text/html")));
+                setAblage(zwischenablageLesen(e.clipboardData));
                 setDocx(null);
                 setTimeout(() => setAnsicht("markiert"), 0);
               }}
@@ -389,7 +471,7 @@ export default function PruefenPage() {
               </div>
 
               {herkunft && (
-                <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm">
+                <div className={`rounded-xl border p-4 text-sm ${herkunft.schwere === "hoch" ? "border-red-300 bg-red-50" : herkunft.schwere === "mittel" ? "border-yellow-300 bg-yellow-50" : "border-gray-200 bg-white"}`}>
                   <div className="font-semibold flex items-center gap-2"><ClipboardPaste size={16} /> Zwischenablage: {herkunft.quelle}</div>
                   <div className="text-gray-500 text-xs mt-1">{herkunft.hinweise.join(" · ")}</div>
                 </div>
@@ -443,6 +525,8 @@ export default function PruefenPage() {
                   );
                 })}
               </div>
+
+              <Diagnose text={text} ablage={ablage} funde={ergebnis.funde.map((f) => f.id)} />
 
               <p className="text-[11px] text-gray-400 leading-relaxed px-1">
                 Der Check zeigt Indizien für eine menschliche Prüfung, keinen Beweis. Statistische Wasserzeichen einzelner Anbieter (etwa Googles SynthID) sind nur mit deren eigenem Schlüssel nachweisbar. Geprüft werden die Spuren, die beim Kopieren und durch KI-Ausgaben tatsächlich im Text landen.

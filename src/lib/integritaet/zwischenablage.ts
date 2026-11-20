@@ -1,47 +1,127 @@
-// Wertet die HTML-Fassung der Zwischenablage aus. Beim Einfügen liefern
-// Browser neben dem Klartext oft auch HTML mit — und das verrät die Quelle.
+// Wertet ALLE Formate der Zwischenablage aus. Beim Einfügen liefern Browser
+// neben dem Klartext oft HTML, RTF und programmeigene Formate mit — und die
+// verraten die Quelle, auch wenn der Klartext völlig unauffällig ist.
 
 import type { Fund } from "./pruefe";
 
-export type Herkunft = { quelle: string; hinweise: string[] };
+export type Zwischenablage = {
+  typen: string[];
+  daten: Record<string, string>;
+};
 
-const MUSTER: [RegExp, string, string][] = [
-  [/urn:schemas-microsoft-com:office:word|class="?Mso|mso-[a-z-]+:/i, "Microsoft Word", "Word-Formatklassen (Mso…)"],
-  [/docs-internal-guid/i, "Google Docs", "Google-Docs-Kennung"],
-  [/<meta name="?generator"? content="?LibreOffice/i, "LibreOffice", "LibreOffice-Generator"],
-  [/data-start="\d+"[^>]*data-end="\d+"|data-message-author-role|class="[^"]*markdown prose/i, "ChatGPT", "Chat-Oberfläche mit ChatGPT-Attributen"],
-  [/font-claude|claude-response|data-is-streaming/i, "Claude", "Claude-Oberflächenklassen"],
-  [/model-response|response-content|gemini/i, "Gemini", "Gemini-Oberflächenklassen"],
-  [/class="[^"]*\bprose\b|whitespace-pre-wrap|break-words/i, "KI-Chat / Web-App", "Tailwind-Klassen einer Chat-Oberfläche"],
-  [/<a\s[^>]*href="https?:/i, "Webseite", "Hyperlinks"],
+export type Herkunft = {
+  quelle: string;
+  schwere: "hoch" | "mittel" | "info";
+  hinweise: string[];
+};
+
+type Regel = { re: RegExp; quelle: string; hinweis: string; schwere: Herkunft["schwere"]; feld: "html" | "rtf" | "typen" };
+
+// Reihenfolge = Priorität: die erste passende Regel bestimmt die Quelle
+const REGELN: Regel[] = [
+  // KI-Chats im Browser
+  { feld: "html", re: /data-start="\d+"[^>]*data-end="\d+"|data-message-author-role|class="[^"]*markdown prose/i, quelle: "ChatGPT", hinweis: "ChatGPT-Attribute (data-start/data-end)", schwere: "hoch" },
+  { feld: "html", re: /font-claude|claude-response|data-is-streaming|class="[^"]*font-(?:user|claude)-message/i, quelle: "Claude", hinweis: "Claude-Oberflächenklassen", schwere: "hoch" },
+  { feld: "html", re: /model-response|message-content[^"]*gemini|class="[^"]*markdown-main-panel|response-container/i, quelle: "Gemini", hinweis: "Gemini-Oberflächenklassen", schwere: "hoch" },
+  { feld: "html", re: /perplexity|class="[^"]*prose[^"]*dark:prose-invert/i, quelle: "Perplexity / KI-Chat", hinweis: "Oberflächenklassen eines KI-Chats", schwere: "hoch" },
+  { feld: "html", re: /copilot|cib-serp|sydney/i, quelle: "Microsoft Copilot", hinweis: "Copilot-Oberflächenklassen", schwere: "hoch" },
+  // Code-Editoren (VS Code, Antigravity, Cursor, Windsurf …)
+  { feld: "typen", re: /vscode-editor-data|code-editor|monaco/i, quelle: "Code-Editor (VS-Code-basiert, z. B. Antigravity, Cursor)", hinweis: "Editor-eigenes Zwischenablage-Format", schwere: "hoch" },
+  { feld: "html", re: /font-family:\s*(?:Menlo|Consolas|'?Droid Sans Mono|'?Cascadia|'?JetBrains|'?Fira Code)[^;]*;[^"]*white-space:\s*pre/i, quelle: "Code-Editor (VS-Code-basiert, z. B. Antigravity, Cursor)", hinweis: "Editor-Formatierung (Monospace, white-space: pre)", schwere: "hoch" },
+  // Office
+  { feld: "html", re: /urn:schemas-microsoft-com:office:(?:word|office)|class="?Mso|mso-[a-z-]+:|WordSection1/i, quelle: "Microsoft Word / Outlook", hinweis: "Word-Format (Outlook schreibt Mails ebenfalls im Word-Format)", schwere: "info" },
+  { feld: "rtf", re: /\\generator Microsoft Word|\\\*\\generator Msftedit|\\mmathPr/i, quelle: "Microsoft Word / Outlook", hinweis: "Word-RTF", schwere: "info" },
+  { feld: "html", re: /docs-internal-guid/i, quelle: "Google Docs", hinweis: "Google-Docs-Kennung", schwere: "info" },
+  { feld: "html", re: /<meta name="?generator"? content="?LibreOffice/i, quelle: "LibreOffice", hinweis: "LibreOffice-Generator", schwere: "info" },
+  // Apps mit System-Oberflächenschrift (Text aus einer App-Oberfläche, nicht aus einem Dokument)
+  { feld: "rtf", re: /\.AppleSystemUIFont|\.SFNS|\.SF NS|SFPro/i, quelle: "macOS-App-Oberfläche (z. B. ChatGPT-App, Nachrichten)", hinweis: "RTF mit System-Oberflächenschrift", schwere: "mittel" },
+  { feld: "html", re: /font-family:\s*(?:-apple-system|system-ui|ui-sans-serif|BlinkMacSystemFont|"?Segoe UI Variable)/i, quelle: "App- oder Web-Oberfläche", hinweis: "System-Oberflächenschrift", schwere: "mittel" },
+  { feld: "html", re: /class="[^"]*\b(?:prose|whitespace-pre-wrap|break-words)\b/i, quelle: "KI-Chat / Web-App", hinweis: "Tailwind-Klassen einer Chat-Oberfläche", schwere: "mittel" },
+  { feld: "rtf", re: /\\cocoartf/i, quelle: "macOS-Programm", hinweis: "Cocoa-RTF (TextEdit, Notizen, Mail, Apps)", schwere: "info" },
+  { feld: "html", re: /<a\s[^>]*href="https?:/i, quelle: "Webseite", hinweis: "Hyperlinks", schwere: "info" },
 ];
 
-export function herkunftAusHtml(html: string | undefined): Herkunft | null {
-  if (!html || !html.trim()) return null;
+export function zwischenablageLesen(dt: DataTransfer): Zwischenablage {
+  const typen = Array.from(dt.types ?? []);
+  const daten: Record<string, string> = {};
+  for (const t of typen) {
+    if (t === "Files") continue;
+    try {
+      daten[t] = dt.getData(t);
+    } catch {
+      daten[t] = "";
+    }
+  }
+  return { typen, daten };
+}
+
+export function herkunftBestimmen(z: Zwischenablage | null): Herkunft | null {
+  if (!z) return null;
+  const html = z.daten["text/html"] ?? "";
+  const rtf = z.daten["text/rtf"] ?? z.daten["public.rtf"] ?? "";
+  const typen = z.typen.join(" ");
+  const nurText = z.typen.every((t) => t === "text/plain");
+  if (nurText) return { quelle: "Nur Klartext", schwere: "info", hinweise: ["Die Quelle hat keine Formatierung mitgegeben (typisch für Apps, Terminals, PDF-Reader und Kopier-Schaltflächen)"] };
+
   const hinweise: string[] = [];
   let quelle: string | null = null;
-  for (const [re, name, hinweis] of MUSTER) {
-    if (re.test(html)) {
-      quelle ??= name;
-      hinweise.push(hinweis);
+  let schwere: Herkunft["schwere"] = "info";
+  const rang = { info: 0, mittel: 1, hoch: 2 };
+  for (const r of REGELN) {
+    const feld = r.feld === "html" ? html : r.feld === "rtf" ? rtf : typen;
+    if (feld && r.re.test(feld)) {
+      if (!quelle) quelle = r.quelle;
+      if (rang[r.schwere] > rang[schwere]) schwere = r.schwere;
+      if (!hinweise.includes(r.hinweis)) hinweise.push(r.hinweis);
     }
   }
   const schrift = html.match(/font-family:\s*([^;"]+)/i)?.[1]?.replace(/&quot;|'/g, "").trim();
   if (schrift) hinweise.push(`Schrift: ${schrift.split(",")[0]}`);
-  return { quelle: quelle ?? "Formatierter Text (Web/Programm)", hinweise };
+  const rtfSchrift = rtf.match(/\\fonttbl[^;]*?\\f\d+\\f\w+\\fcharset\d+ ([^;]+);/)?.[1];
+  if (rtfSchrift) hinweise.push(`RTF-Schrift: ${rtfSchrift}`);
+  const fremd = z.typen.filter((t) => !["text/plain", "text/html", "text/rtf", "text/uri-list"].includes(t));
+  if (fremd.length) hinweise.push(`Zusatzformate: ${fremd.join(", ")}`);
+
+  // Formatierte Struktur, die im Klartext verloren ging (z. B. Fettdruck/Listen aus Chat-Antworten)
+  const struktur = (html.match(/<(?:strong|b|h[1-6]|li)\b/gi) ?? []).length;
+  if (struktur >= 3) hinweise.push(`${struktur} Struktur-Elemente (Überschriften/Fett/Listen) in der HTML-Fassung`);
+
+  return { quelle: quelle ?? "Formatierter Text (Web/Programm)", schwere, hinweise };
 }
 
 export function fundAusHerkunft(h: Herkunft | null): Fund[] {
-  if (!h) return [];
-  const ki = /ChatGPT|Claude|Gemini|KI-Chat/.test(h.quelle);
+  if (!h || h.quelle === "Nur Klartext") return [];
   return [
     {
       id: "zwischenablage",
       kategorie: "paste",
-      schwere: ki ? "hoch" : "info",
+      schwere: h.schwere,
       titel: `Eingefügt aus: ${h.quelle}`,
-      detail: `Die mitkopierte Formatierung der Zwischenablage verrät die Quelle (${h.hinweise.join(", ")}). Hinweis: Das beschreibt, woher SIE den Text gerade kopiert haben — nützlich, wenn Sie direkt aus der Abgabe oder dem Moodle-Export kopieren.`,
+      detail: `Die mitkopierte Formatierung der Zwischenablage verrät die Quelle (${h.hinweise.join("; ")}). Hinweis: Das beschreibt, woher SIE den Text gerade kopiert haben — aussagekräftig, wenn Sie direkt aus der Abgabe kopieren oder zum Testen aus der vermuteten Quelle.`,
       stellen: [],
     },
   ];
 }
+
+/** Für Diagnose und Feintuning: welche besonderen Zeichen stecken im Text? */
+export function zeicheninventar(text: string): { zeichen: string; code: string; name: string; anzahl: number }[] {
+  const zaehler = new Map<string, number>();
+  for (const c of text) {
+    if (/[\x20-\x7E\n\r\tÄÖÜäöüß§€°²³]/.test(c)) continue;
+    zaehler.set(c, (zaehler.get(c) ?? 0) + 1);
+  }
+  return [...zaehler.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([c, n]) => {
+      const cp = c.codePointAt(0)!;
+      return { zeichen: c, code: "U+" + cp.toString(16).toUpperCase().padStart(4, "0"), name: ZEICHEN_NAME[cp] ?? "", anzahl: n };
+    });
+}
+
+const ZEICHEN_NAME: Record<number, string> = {
+  0x00a0: "geschütztes Leerzeichen", 0x00ad: "weiches Trennzeichen", 0x2010: "Bindestrich (Unicode)", 0x2011: "geschützter Bindestrich",
+  0x2012: "Ziffernstrich", 0x2013: "Halbgeviertstrich", 0x2014: "Geviertstrich", 0x2018: "‘", 0x2019: "’ Apostroph", 0x201a: "‚",
+  0x201c: "“", 0x201d: "”", 0x201e: "„", 0x2026: "Auslassungszeichen", 0x202f: "schmales geschütztes Leerzeichen", 0x2009: "schmales Leerzeichen",
+  0x200b: "Nullbreiten-Leerzeichen", 0x200c: "ZWNJ", 0x200d: "ZWJ", 0x2060: "Wortverbinder", 0xfeff: "BOM", 0x2022: "Aufzählungspunkt",
+  0x2192: "Pfeil →", 0x00bb: "»", 0x00ab: "«",
+};

@@ -233,3 +233,29 @@ test("PDF: weiße Schrift, unsichtbarer Modus, Mini-Schrift, Browser-Druck, Link
   assert.ok(e.funde.some((f) => f.id === "injection"));
   assert.ok(e.funde.some((f) => f.id === "ki-zitate"));
 });
+
+// ───────── Zwischenablage & GPT-Klartext ─────────
+import { herkunftBestimmen } from "../src/lib/integritaet/zwischenablage.ts";
+
+test("Zwischenablage: Quellen", () => {
+  const q = (typen, daten) => herkunftBestimmen({ typen, daten });
+  assert.equal(q(["text/plain", "text/html"], { "text/html": '<p data-start="0" data-end="12">Hallo</p>' }).quelle, "ChatGPT");
+  assert.match(q(["text/plain", "vscode-editor-data"], {}).quelle, /Code-Editor/);
+  assert.match(q(["text/plain", "text/html"], { "text/html": '<div style="font-family: Menlo, Monaco, monospace; white-space: pre;">x</div>' }).quelle, /Code-Editor/);
+  assert.match(q(["text/plain", "text/html"], { "text/html": '<p class=MsoNormal>Hallo</p>' }).quelle, /Outlook/);
+  assert.match(q(["text/plain", "text/rtf"], { "text/rtf": "{\\rtf1\\ansi\\cocoartf2822 {\\fonttbl\\f0\\fnil\\fcharset0 .AppleSystemUIFont;}" }).quelle, /macOS-App/);
+  assert.equal(q(["text/plain"], {}).quelle, "Nur Klartext");
+});
+
+test("GPT-Klartext ohne Markdown: Bindestrich U+2011, Chat-Angebot, Gliederung", () => {
+  const t = `Kurz gesagt: B hat einen Anspruch nach § 1295 ABGB.
+
+Schaden: Die Vase ist zerbrochen, es liegt ein positiver Schaden vor.
+Kausalität: Ohne das Rennen des A wäre sie nicht umgefallen.
+Rechtswidrigkeit: Eingriff in das Eigentum als absolut geschütztes Recht.
+Verschulden: Leichte Fahrlässigkeit genügt; das Rennen im Wohn‑ und Essbereich ist sorgfaltswidrig.
+
+Wenn du willst, kann ich dir auch eine ausformulierte Gutachten‑Lösung schreiben.`;
+  const e = pruefeText(t);
+  for (const id of ["unicode-bindestrich", "chatformeln", "chat-gliederung"]) assert.ok(ids(e).includes(id), id);
+});
