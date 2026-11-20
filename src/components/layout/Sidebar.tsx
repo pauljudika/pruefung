@@ -4,7 +4,8 @@ import {
   FilePlus2, 
   Upload, 
   CheckSquare, 
-  Settings 
+  Settings,
+  ScanSearch
 } from "lucide-react";
 
 export function Sidebar() {
@@ -54,6 +55,11 @@ export function Sidebar() {
         <Link href="/review" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 hover:text-uniyellow transition-colors">
           <CheckSquare size={20} />
           <span className="font-medium">Review & Freigabe</span>
+        </Link>
+
+        <Link href="/pruefen" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 hover:text-uniyellow transition-colors">
+          <ScanSearch size={20} />
+          <span className="font-medium">Integritäts-Check</span>
         </Link>
       </nav>
 
