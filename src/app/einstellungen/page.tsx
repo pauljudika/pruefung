@@ -112,16 +112,14 @@ export default function EinstellungenPage() {
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Aktiver Endpunkt</label>
                 <select className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-uniyellow outline-none bg-white">
-                  <option>UniGPT (Interne API)</option>
-                  <option>Anthropic Claude (EU)</option>
-                  <option>Google Vertex AI (Frankfurt)</option>
+                  <option>Google Vertex AI (Frankfurt, EU)</option>
                 </select>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Modell-Version</label>
                 <select className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-uniyellow outline-none bg-white">
-                  <option>claude-3-5-sonnet-20240620 (Gepinnt)</option>
-                  <option>claude-3-opus-20240229</option>
+                  <option>Google Argon (Gepinnt)</option>
+                  <option>Google Hydrogen</option>
                 </select>
               </div>
               <div className="pt-2">
@@ -178,14 +176,14 @@ export default function EinstellungenPage() {
                 <td className="px-6 py-3">2026-09-21 09:15:00</td>
                 <td className="px-4 py-3">System (KI_Lauf)</td>
                 <td className="px-4 py-3"><span className="text-blue-600 font-bold">BATCH_AUSWERTUNG</span></td>
-                <td className="px-4 py-3">Batch-Lauf für 300 Arbeiten beendet. Modell: claude-3-5-sonnet. Flags: 12 Unsicher.</td>
+                <td className="px-4 py-3">Batch-Lauf für 300 Arbeiten beendet. Modell: Google Argon. Flags: 12 Unsicher.</td>
                 <td className="px-6 py-3 text-right text-gray-400">0x77b2...11ef</td>
               </tr>
               <tr className="hover:bg-gray-50 text-gray-600">
                 <td className="px-6 py-3">2026-09-20 16:45:12</td>
                 <td className="px-4 py-3">Magdalena Eder</td>
                 <td className="px-4 py-3"><span className="text-purple-600 font-bold">IMPORT</span></td>
-                <td className="px-4 py-3">CSV Upload: 300 Arbeiten geladen und lokal pseudonymisiert.</td>
+                <td className="px-4 py-3">CSV Upload: 300 Arbeiten geladen und im Judika Tresor pseudonymisiert.</td>
                 <td className="px-6 py-3 text-right text-gray-400">0x1a9c...8b22</td>
               </tr>
               <tr className="hover:bg-gray-50 text-gray-600">

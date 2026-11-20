@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ScanSearch, Upload, ShieldAlert, ShieldCheck, AlertTriangle, EyeOff, Code, Bot, ClipboardPaste,
   PenLine, FileWarning, FileText, Info, Lock, X,
 } from "lucide-react";
 import { pruefeText, KATEGORIE_INFO, ZEICHEN_NAMEN, type Fund, type Kategorie, type Modus, type Schwere } from "@/lib/integritaet/pruefe";
-import { liesDocx, type DocxBefund } from "@/lib/integritaet/docx";
+import { liesDocx } from "@/lib/integritaet/docx";
+import { liesPdf } from "@/lib/integritaet/pdf";
 import { herkunftAusHtml, fundAusHerkunft, type Herkunft } from "@/lib/integritaet/zwischenablage";
 import { BEISPIELE } from "@/lib/integritaet/beispiele";
 
@@ -117,10 +118,18 @@ function MarkierterText({ text, funde, fokus }: { text: string; funde: Fund[]; f
 
 // ───────── Seite ─────────
 
+type Dokument = { datei: string; art: "Word" | "PDF"; funde: Fund[]; meta: [string, string][] };
+
+function datum(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleString("de-AT", { dateStyle: "short", timeStyle: "short" });
+}
+
 export default function PruefenPage() {
   const [text, setText] = useState("");
   const [modus, setModus] = useState<Modus>("online");
-  const [docx, setDocx] = useState<(DocxBefund & { datei: string }) | null>(null);
+  const [docx, setDocx] = useState<Dokument | null>(null);
   const [herkunft, setHerkunft] = useState<Herkunft | null>(null);
   const [ansicht, setAnsicht] = useState<"eingabe" | "markiert">("eingabe");
   const [fokus, setFokus] = useState<string | null>(null);
@@ -147,12 +156,43 @@ export default function PruefenPage() {
       const name = f.name.toLowerCase();
       if (name.endsWith(".docx")) {
         const b = liesDocx(new Uint8Array(await f.arrayBuffer()));
-        setDocx({ ...b, datei: f.name });
+        const m = b.meta;
+        setDocx({
+          datei: f.name,
+          art: "Word",
+          funde: b.funde,
+          meta: [
+            ["Programm", m.anwendung ?? "—"],
+            ["Bearbeitungszeit", m.bearbeitungsMinuten !== undefined ? `${m.bearbeitungsMinuten} Min.` : "—"],
+            ["Speichervorgänge", m.revision !== undefined ? String(m.revision) : "—"],
+            ["Erstellt", datum(m.erstellt)],
+            ["Geändert", datum(m.geaendert)],
+            ["Autor", m.autorVorhanden ? "vorhanden (ausgeblendet)" : "—"],
+          ],
+        });
+        neu(b.text, "word");
+      } else if (name.endsWith(".pdf")) {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+        const b = await liesPdf(new Uint8Array(await f.arrayBuffer()), pdfjs as unknown as Parameters<typeof liesPdf>[1]);
+        const m = b.meta;
+        setDocx({
+          datei: f.name,
+          art: "PDF",
+          funde: b.funde,
+          meta: [
+            ["Seiten", String(m.seiten)],
+            ["Programm", m.programm ?? "—"],
+            ["PDF-Erzeuger", m.erzeuger ?? "—"],
+            ["Erstellt", datum(m.erstellt)],
+            ["Geändert", datum(m.geaendert)],
+            ["Autor", m.autorVorhanden ? "vorhanden (ausgeblendet)" : "—"],
+          ],
+        });
+        if (!b.text.trim()) setFehler("Das PDF enthält keinen Text (vermutlich ein Scan ohne Texterkennung).");
         neu(b.text, "word");
       } else if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv") || f.type.startsWith("text/")) {
         neu(await f.text(), "online");
-      } else if (name.endsWith(".pdf")) {
-        setFehler("PDF-Import folgt. Bis dahin: Text im PDF markieren, kopieren und hier einfügen — die PDF-Spuren (Ligaturen, Umbrüche) werden dabei erkannt.");
       } else if (name.endsWith(".doc")) {
         setFehler("Das alte .doc-Format wird nicht unterstützt. Bitte in Word als .docx speichern.");
       } else {
@@ -212,12 +252,15 @@ export default function PruefenPage() {
         </div>
         <div className="w-px h-8 bg-gray-200 hidden md:block" />
         <label className="text-sm px-3 py-1.5 rounded-lg bg-uniblack text-white hover:bg-gray-800 cursor-pointer flex items-center gap-2">
-          <Upload size={16} /> Datei prüfen (.docx, .txt)
+          <Upload size={16} /> Datei prüfen (.docx, .pdf, .txt)
           <input type="file" accept=".docx,.txt,.md,.csv,.pdf,.doc" className="hidden" onChange={(e) => e.target.files?.[0] && dateiLaden(e.target.files[0])} />
         </label>
-        <a href="/beispiele/abgabe-beispiel.docx" download className="text-xs text-gray-500 underline hover:text-uniblack">
-          Beispiel-Abgabe (.docx) herunterladen
-        </a>
+        <span className="text-xs text-gray-500">
+          Beispiel-Abgaben:{" "}
+          <a href="/beispiele/abgabe-beispiel.docx" download className="underline hover:text-uniblack">Word</a>
+          {" · "}
+          <a href="/beispiele/abgabe-beispiel.pdf" download className="underline hover:text-uniblack">PDF</a>
+        </span>
         <div className="ml-auto flex items-center gap-2 text-sm">
           <span className="text-gray-500">Herkunft des Textes:</span>
           <div className="flex rounded-lg border border-gray-300 overflow-hidden">
@@ -354,14 +397,14 @@ export default function PruefenPage() {
 
               {docx && (
                 <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm">
-                  <div className="font-semibold flex items-center gap-2 mb-2"><FileText size={16} /> Word-Metadaten</div>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <dt className="text-gray-500">Programm</dt><dd>{docx.meta.anwendung ?? "—"}</dd>
-                    <dt className="text-gray-500">Bearbeitungszeit</dt><dd>{docx.meta.bearbeitungsMinuten !== undefined ? `${docx.meta.bearbeitungsMinuten} Min.` : "—"}</dd>
-                    <dt className="text-gray-500">Speichervorgänge</dt><dd>{docx.meta.revision ?? "—"}</dd>
-                    <dt className="text-gray-500">Erstellt / geändert</dt>
-                    <dd>{docx.meta.erstellt ? new Date(docx.meta.erstellt).toLocaleString("de-AT", { dateStyle: "short", timeStyle: "short" }) : "—"} / {docx.meta.geaendert ? new Date(docx.meta.geaendert).toLocaleString("de-AT", { timeStyle: "short" }) : "—"}</dd>
-                    <dt className="text-gray-500">Autor</dt><dd>{docx.meta.autorVorhanden ? "vorhanden (ausgeblendet)" : "—"}</dd>
+                  <div className="font-semibold flex items-center gap-2 mb-2"><FileText size={16} /> {docx.art}-Metadaten</div>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                    {docx.meta.map(([k, v]) => (
+                      <Fragment key={k}>
+                        <dt className="text-gray-500">{k}</dt>
+                        <dd className="break-words">{v}</dd>
+                      </Fragment>
+                    ))}
                   </dl>
                 </div>
               )}

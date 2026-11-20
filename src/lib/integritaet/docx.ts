@@ -22,7 +22,7 @@ export type DocxBefund = {
   standardSchrift?: string;
 };
 
-type Lauf = { start: number; ende: number; schrift?: string; hintergrund?: string; markierung?: string; mono: boolean; link: boolean };
+type Lauf = { start: number; ende: number; schrift?: string; hintergrund?: string; markierung?: string; mono: boolean; link: boolean; versteckt?: string; bereich?: string };
 
 function xmlDecode(s: string): string {
   return s
@@ -44,74 +44,167 @@ function tag(xml: string | undefined, name: string): string | undefined {
 const WEB_SCHRIFTEN = /s[öo]hne|ui-sans-serif|ui-serif|ui-monospace|system-ui|-apple-system|blinkmacsystemfont|segoe ui|\binter\b|helvetica neue|styrene|tiempos|copernicus|google sans|roboto|noto sans|open sans|source sans/i;
 const MONO = /courier|consolas|menlo|monaco|monospace|mono\b|sfmono|fira code|jetbrains/i;
 
+const TEILE = /^(?:word\/(?:document|styles|footnotes|endnotes|comments|header\d*|footer\d*)\.xml|docProps\/(?:app|core|custom)\.xml)$/;
+
+function istWeiss(hex?: string): boolean {
+  if (!hex || !/^[0-9a-f]{6}$/i.test(hex)) return false;
+  return [0, 2, 4].every((i) => parseInt(hex.slice(i, i + 2), 16) >= 0xf0);
+}
+
 export function liesDocx(daten: Uint8Array): DocxBefund {
-  const dateien = unzipSync(daten, {
-    filter: (f) => ["word/document.xml", "word/styles.xml", "docProps/app.xml", "docProps/core.xml"].includes(f.name),
-  });
+  const dateien = unzipSync(daten, { filter: (f) => TEILE.test(f.name) });
   const doc = dateien["word/document.xml"];
   if (!doc) throw new Error("Keine gültige Word-Datei (word/document.xml fehlt).");
+  const lies = (n: string) => (dateien[n] ? strFromU8(dateien[n]) : undefined);
   const xml = strFromU8(doc);
-  const styles = dateien["word/styles.xml"] ? strFromU8(dateien["word/styles.xml"]) : "";
-  const app = dateien["docProps/app.xml"] ? strFromU8(dateien["docProps/app.xml"]) : undefined;
-  const core = dateien["docProps/core.xml"] ? strFromU8(dateien["docProps/core.xml"]) : undefined;
+  const styles = lies("word/styles.xml") ?? "";
+  const app = lies("docProps/app.xml");
+  const core = lies("docProps/core.xml");
 
   const defaults = styles.match(/<w:docDefaults>[\s\S]*?<\/w:docDefaults>/)?.[0] ?? "";
   const standardSchrift = defaults.match(/<w:rFonts [^>]*w:ascii="([^"]+)"/)?.[1] ?? (defaults.includes("minorHAnsi") ? "(Design-Schrift)" : undefined);
+  // Zeichenformatvorlagen, die Text verstecken
+  const versteckteStile = new Set<string>();
+  for (const st of styles.match(/<w:style\b[\s\S]*?<\/w:style>/g) ?? []) {
+    const id = st.match(/w:styleId="([^"]+)"/)?.[1];
+    if (id && (/<w:vanish\s*\/>|<w:vanish w:val="(?:true|1|on)"/.test(st) || istWeiss(st.match(/<w:color w:val="([0-9A-Fa-f]{6})"/)?.[1]))) versteckteStile.add(id);
+  }
 
-  // Text und Läufe aufbauen
   let text = "";
   const laeufe: Lauf[] = [];
-  const body = xml.match(/<w:body>([\s\S]*)<\/w:body>/)?.[1] ?? xml;
-  const absaetze = body.match(/<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g) ?? [];
-  for (const p of absaetze) {
-    // Hyperlinks merken, um die Läufe darin zu kennzeichnen
-    const teile = p.split(/(<w:hyperlink\b[\s\S]*?<\/w:hyperlink>)/);
-    for (const teil of teile) {
-      const imLink = teil.startsWith("<w:hyperlink");
-      const runs = teil.match(/<w:r\b(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g) ?? [];
-      for (const r of runs) {
-        let t = "";
-        const inhalt = r.replace(/<w:rPr>[\s\S]*?<\/w:rPr>/, "");
-        const re = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\/>|<w:br\/>|<w:noBreakHyphen\/>|<w:softHyphen\/>/g;
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(inhalt)) !== null) {
-          if (m[1] !== undefined) t += xmlDecode(m[1]);
-          else if (m[0] === "<w:tab/>") t += "\t";
-          else if (m[0] === "<w:br/>") t += "\n";
-          else if (m[0] === "<w:noBreakHyphen/>") t += "‑";
-          else if (m[0] === "<w:softHyphen/>") t += "­";
+
+  function teilLesen(teilXml: string, bereich: string) {
+    const absaetze = teilXml.match(/<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g) ?? [];
+    for (const p of absaetze) {
+      const teile = p.split(/(<w:hyperlink\b[\s\S]*?<\/w:hyperlink>)/);
+      for (const teil of teile) {
+        const imLink = teil.startsWith("<w:hyperlink");
+        const runs = teil.match(/<w:r\b(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g) ?? [];
+        for (const r of runs) {
+          let t = "";
+          const inhalt = r.replace(/<w:rPr>[\s\S]*?<\/w:rPr>/, "");
+          const re = /<w:(?:t|delText)(?:\s[^>]*)?>([\s\S]*?)<\/w:(?:t|delText)>|<w:tab\/>|<w:br\/>|<w:noBreakHyphen\/>|<w:softHyphen\/>/g;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(inhalt)) !== null) {
+            if (m[1] !== undefined) t += xmlDecode(m[1]);
+            else if (m[0] === "<w:tab/>") t += "\t";
+            else if (m[0] === "<w:br/>") t += "\n";
+            else if (m[0] === "<w:noBreakHyphen/>") t += "‑";
+            else if (m[0] === "<w:softHyphen/>") t += "­";
+          }
+          if (!t) continue;
+          const rpr = r.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/)?.[1] ?? "";
+          const schrift = rpr.match(/<w:rFonts [^>]*w:(?:ascii|hAnsi)="([^"]+)"/)?.[1];
+          const fill = rpr.match(/<w:shd [^>]*w:fill="([0-9A-Fa-f]{6})"/)?.[1];
+          const hl = rpr.match(/<w:highlight w:val="(\w+)"/)?.[1];
+          const farbe = rpr.match(/<w:color w:val="([0-9A-Fa-f]{6})"/)?.[1];
+          const groesse = Number(rpr.match(/<w:sz w:val="(\d+)"/)?.[1] ?? 0);
+          const stil = rpr.match(/<w:rStyle w:val="([^"]+)"/)?.[1];
+          let versteckt: string | undefined;
+          if (/<w:(?:vanish|webHidden|specVanish)\s*\/>|<w:(?:vanish|webHidden)\s+w:val="(?:true|1|on)"/.test(rpr)) versteckt = "ausgeblendet";
+          else if (stil && versteckteStile.has(stil)) versteckt = "über Formatvorlage versteckt";
+          else if (istWeiss(farbe) && (!fill || istWeiss(fill))) versteckt = "weiße Schrift";
+          else if (farbe && fill && farbe.toUpperCase() === fill.toUpperCase()) versteckt = "Schrift in Hintergrundfarbe";
+          else if (hl === "white" && istWeiss(farbe)) versteckt = "weiß auf weiß";
+          else if (groesse > 0 && groesse <= 4) versteckt = `Mini-Schrift (${groesse / 2} pt)`;
+          if (/<w:delText/.test(r)) versteckt = "gelöschter Text (Änderungsverfolgung)";
+          laeufe.push({
+            start: text.length,
+            ende: text.length + t.length,
+            schrift,
+            hintergrund: fill && !istWeiss(fill) && !versteckt ? fill : undefined,
+            markierung: hl && hl !== "none" ? hl : undefined,
+            mono: !!schrift && MONO.test(schrift),
+            link: imLink,
+            versteckt,
+            bereich,
+          });
+          text += t;
         }
-        if (!t) continue;
-        const rpr = r.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/)?.[1] ?? "";
-        const schrift = rpr.match(/<w:rFonts [^>]*w:(?:ascii|hAnsi)="([^"]+)"/)?.[1];
-        const fill = rpr.match(/<w:shd [^>]*w:fill="([0-9A-Fa-f]{6})"/)?.[1];
-        const hl = rpr.match(/<w:highlight w:val="(\w+)"/)?.[1];
-        laeufe.push({
-          start: text.length,
-          ende: text.length + t.length,
-          schrift,
-          hintergrund: fill && fill.toUpperCase() !== "FFFFFF" ? fill : undefined,
-          markierung: hl && hl !== "none" ? hl : undefined,
-          mono: !!schrift && MONO.test(schrift),
-          link: imLink,
-        });
-        text += t;
       }
+      text += "\n";
     }
-    text += "\n";
+  }
+
+  const body = xml.match(/<w:body>([\s\S]*)<\/w:body>/)?.[1] ?? xml;
+  teilLesen(body, "Haupttext");
+
+  // Nebenbereiche: dort wird Text gern versteckt, weil ihn niemand liest — eine KI aber schon
+  const nebenbereiche: string[] = [];
+  const neben = (titel: string, inhalt: string) => {
+    if (!inhalt.trim()) return;
+    text = text.replace(/\n+$/, "") + `\n\n[${titel}]\n`;
+    nebenbereiche.push(titel);
+  };
+  for (const [name, titel] of [
+    ...Object.keys(dateien).filter((n) => /^word\/header\d*\.xml$/.test(n)).map((n) => [n, "Kopfzeile"]),
+    ...Object.keys(dateien).filter((n) => /^word\/footer\d*\.xml$/.test(n)).map((n) => [n, "Fußzeile"]),
+    ["word/footnotes.xml", "Fußnoten"],
+    ["word/endnotes.xml", "Endnoten"],
+    ["word/comments.xml", "Kommentare"],
+  ]) {
+    const x = lies(name);
+    if (!x) continue;
+    // Trenn-Fußnoten (Typ separator) überspringen
+    const ohneTrenner = x.replace(/<w:(?:footnote|endnote) [^>]*w:type="(?:separator|continuationSeparator)"[\s\S]*?<\/w:(?:footnote|endnote)>/g, "");
+    if (!/<w:t[\s>]/.test(ohneTrenner)) continue;
+    neben(titel, "x");
+    teilLesen(ohneTrenner, titel);
+  }
+  const alt = [...xml.matchAll(/<wp:docPr\b[^>]*\bdescr="([^"]+)"/g)].map((m) => xmlDecode(m[1]));
+  if (alt.length) {
+    neben("Alternativtext von Bildern", "x");
+    const s = text.length;
+    text += alt.join("\n") + "\n";
+    laeufe.push({ start: s, ende: text.length - 1, mono: false, link: false, bereich: "Alternativtext" });
+  }
+  const eigenschaften = [
+    ...["dc:title", "dc:subject", "dc:description", "cp:keywords", "cp:category"].map((t) => tag(core, t)),
+    ...[...(lies("docProps/custom.xml") ?? "").matchAll(/<vt:lpwstr>([\s\S]*?)<\/vt:lpwstr>/g)].map((m) => xmlDecode(m[1])),
+  ].filter((x): x is string => !!x && x.trim().length > 0);
+  if (eigenschaften.length) {
+    neben("Dokument-Eigenschaften", "x");
+    const s = text.length;
+    text += eigenschaften.join("\n") + "\n";
+    laeufe.push({ start: s, ende: text.length - 1, mono: false, link: false, bereich: "Eigenschaften" });
   }
   text = text.replace(/\n+$/, "");
 
   const funde: Fund[] = [];
 
+  const versteckt = laeufe.filter((l) => l.versteckt && text.slice(l.start, l.ende).trim());
+  if (versteckt.length) {
+    const arten = [...new Set(versteckt.map((l) => l.versteckt!))];
+    funde.push({
+      id: "docx-versteckt",
+      kategorie: "dokument",
+      schwere: "hoch",
+      titel: `${versteckt.length} unsichtbare Textstelle${versteckt.length > 1 ? "n" : ""} im Word-Dokument`,
+      detail: `Text, der beim Lesen oder Ausdrucken nicht sichtbar ist (${arten.join(", ")}), den eine KI beim Einlesen aber vollständig mitliest. Klassischer Trick, um der Korrektur-KI Anweisungen unterzuschieben.`,
+      stellen: versteckt.map((l) => ({ start: l.start, ende: l.ende })),
+      belege: versteckt.slice(0, 4).map((l) => `${l.versteckt}: „${text.slice(l.start, l.ende).trim().slice(0, 140)}“`),
+    });
+  }
+  if (nebenbereiche.length) {
+    const neben = laeufe.filter((l) => l.bereich && l.bereich !== "Haupttext");
+    funde.push({
+      id: "docx-nebenbereiche",
+      kategorie: "dokument",
+      schwere: "info",
+      titel: `Text außerhalb des Haupttexts: ${nebenbereiche.join(", ")}`,
+      detail: "Diese Bereiche wurden mitgeprüft und unten an den Text angehängt. Bei Prüfungsabgaben sind sie meist leer — Inhalte dort verdienen einen Blick.",
+      stellen: neben.map((l) => ({ start: l.start, ende: l.ende })),
+    });
+  }
+
   // Schriften: dominante Schrift nach Zeichenzahl
   const anteil = new Map<string, number>();
-  for (const l of laeufe) {
+  for (const l of laeufe.filter((x) => !x.versteckt && (x.bereich ?? "Haupttext") === "Haupttext")) {
     const k = l.schrift ?? "(Standard)";
     anteil.set(k, (anteil.get(k) ?? 0) + (l.ende - l.start));
   }
   const dominant = [...anteil.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const fremd = laeufe.filter((l) => (l.schrift ?? "(Standard)") !== dominant && text.slice(l.start, l.ende).trim().length > 2);
+  const fremd = laeufe.filter((l) => !l.versteckt && (l.bereich ?? "Haupttext") === "Haupttext" && (l.schrift ?? "(Standard)") !== dominant && text.slice(l.start, l.ende).trim().length > 2);
   const webLaeufe = laeufe.filter((l) => l.schrift && WEB_SCHRIFTEN.test(l.schrift));
   if (webLaeufe.length) {
     const namen = [...new Set(webLaeufe.map((l) => l.schrift!))];
@@ -164,7 +257,8 @@ export function liesDocx(daten: Uint8Array): DocxBefund {
   }
 
   // Metadaten
-  const woerterText = (text.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+  const hauptEnde = Math.max(0, ...laeufe.filter((l) => l.bereich === "Haupttext" && !l.versteckt).map((l) => l.ende));
+  const woerterText = (text.slice(0, hauptEnde).match(/[\p{L}\p{N}]+/gu) ?? []).length;
   const minuten = tag(app, "TotalTime");
   const revision = tag(core, "cp:revision");
   const erstellt = tag(core, "dcterms:created");

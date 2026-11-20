@@ -40,7 +40,7 @@ export default function ImportPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Import & Pseudonymisierung</h1>
-        <p className="text-gray-500 mt-1">Exportieren Sie den Moodle-Testbericht (CSV) und laden Sie ihn hier hoch. Die Daten werden lokal im Browser pseudonymisiert, bevor sie an den Server gesendet werden.</p>
+        <p className="text-gray-500 mt-1">Exportieren Sie den Moodle-Testbericht (CSV) und laden Sie ihn hier hoch. Die Datei wird verschlüsselt an den Judika Tresor übertragen und dort serverseitig pseudonymisiert — erst danach sieht eine KI die Antworten.</p>
       </div>
 
       {!isDone ? (
@@ -83,7 +83,7 @@ export default function ImportPage() {
             <ShieldCheck className="text-uniblack mt-0.5" size={20} />
             <div className="text-sm text-blue-900">
               <p className="font-semibold">Datenschutz-Garantie</p>
-              <p className="mt-1">Namen, E-Mail-Adressen und Matrikelnummern werden auf Ihrem Gerät entfernt. Nur pseudonymisierte Antworten (z.B. P-001) und die eigentlichen Texte erreichen den Auswertungsserver.</p>
+              <p className="mt-1">Der Judika Tresor entfernt Namen, E-Mail-Adressen und Matrikelnummern serverseitig in zwei Stufen: ein Regelwerk für feste Muster, danach ein lokal betriebenes Sprachmodell für Namen im Fließtext. Beides läuft auf eigenen Servern in der EU, ohne externe KI-Dienste. Nur pseudonymisierte Antworten (z. B. P-001) gehen in die Auswertung.</p>
             </div>
           </div>
 
@@ -92,14 +92,14 @@ export default function ImportPage() {
               onClick={simulateProcessing}
               className="w-full bg-uniblack hover:bg-gray-900 text-white font-medium py-3 rounded-lg transition-colors flex justify-center items-center gap-2"
             >
-              Lokale Pseudonymisierung starten
+              Pseudonymisierung im Tresor starten
             </button>
           )}
 
           {isProcessing && (
             <div className="w-full bg-gray-100 py-3 rounded-lg flex justify-center items-center gap-2 font-medium text-gray-600">
               <span className="animate-spin h-5 w-5 border-2 border-uniblack border-t-transparent rounded-full"></span>
-              Daten werden lokal verarbeitet...
+              Tresor pseudonymisiert die Daten…
             </div>
           )}
         </div>
@@ -123,7 +123,7 @@ export default function ImportPage() {
             </div>
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
               <div className="text-2xl font-bold text-green-600">0</div>
-              <div className="text-sm text-gray-500">Persönliche Daten übertragen</div>
+              <div className="text-sm text-gray-500">Klarnamen an KI-Modelle</div>
             </div>
           </div>
 
@@ -131,7 +131,7 @@ export default function ImportPage() {
             <button className="w-full bg-gray-800 hover:bg-gray-900 text-white font-medium py-3 rounded-lg transition-colors">
               Zuordnungstabelle herunterladen (.csv)
             </button>
-            <p className="text-xs text-gray-500">Bitte bewahren Sie diese Tabelle lokal auf, um später die Noten den Studierenden zuordnen zu können.</p>
+            <p className="text-xs text-gray-500">Die Zuordnung bleibt verschlüsselt im Tresor. Bei der Freigabe werden die Noten automatisch den Studierenden zugeordnet — die Tabelle dient nur als Sicherungskopie.</p>
             
             <button className="w-full mt-4 bg-uniblack hover:bg-gray-900 text-white font-medium py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
               Probelauf (KI) starten <ArrowRight size={18} />
