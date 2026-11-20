@@ -239,11 +239,11 @@ import { herkunftBestimmen } from "../src/lib/integritaet/zwischenablage.ts";
 
 test("Zwischenablage: Quellen", () => {
   const q = (typen, daten) => herkunftBestimmen({ typen, daten });
-  assert.equal(q(["text/plain", "text/html"], { "text/html": '<p data-start="0" data-end="12">Hallo</p>' }).quelle, "ChatGPT");
+  assert.equal(q(["text/plain", "text/html"], { "text/html": '<p data-start="0" data-end="12">Hallo</p>' }).quelle, "KI-Chat-Oberfläche");
   assert.match(q(["text/plain", "vscode-editor-data"], {}).quelle, /Code-Editor/);
   assert.match(q(["text/plain", "text/html"], { "text/html": '<div style="font-family: Menlo, Monaco, monospace; white-space: pre;">x</div>' }).quelle, /Code-Editor/);
   assert.match(q(["text/plain", "text/html"], { "text/html": '<p class=MsoNormal>Hallo</p>' }).quelle, /Outlook/);
-  assert.match(q(["text/plain", "text/rtf"], { "text/rtf": "{\\rtf1\\ansi\\cocoartf2822 {\\fonttbl\\f0\\fnil\\fcharset0 .AppleSystemUIFont;}" }).quelle, /macOS-App/);
+  assert.match(q(["text/plain", "text/rtf"], { "text/rtf": "{\\rtf1\\ansi\\cocoartf2822 {\\fonttbl\\f0\\fnil\\fcharset0 .AppleSystemUIFont;}" }).quelle, /App-Oberfläche \(macOS\)/);
   assert.equal(q(["text/plain"], {}).quelle, "Nur Klartext");
 });
 
@@ -258,4 +258,10 @@ Verschulden: Leichte Fahrlässigkeit genügt; das Rennen im Wohn‑ und Essberei
 Wenn du willst, kann ich dir auch eine ausformulierte Gutachten‑Lösung schreiben.`;
   const e = pruefeText(t);
   for (const id of ["unicode-bindestrich", "chatformeln", "chat-gliederung"]) assert.ok(ids(e).includes(id), id);
+});
+
+test("Zwischenablage: keine Produktnamen raten (Copilot-Klassen im Editor)", () => {
+  const h = herkunftBestimmen({ typen: ["text/plain", "text/html", "vscode-editor-data"], daten: { "text/html": '<div class="copilot-chat prose">Antwort</div>' } });
+  assert.match(h.quelle, /Code-Editor/);
+  assert.doesNotMatch(JSON.stringify(h), /Copilot|ChatGPT|Gemini|Claude/);
 });

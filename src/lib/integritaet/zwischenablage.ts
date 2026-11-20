@@ -18,25 +18,25 @@ export type Herkunft = {
 type Regel = { re: RegExp; quelle: string; hinweis: string; schwere: Herkunft["schwere"]; feld: "html" | "rtf" | "typen" };
 
 // Reihenfolge = Priorität: die erste passende Regel bestimmt die Quelle
+// Bewusst KEINE Produktnamen bei Chat-Oberflächen: Klassen und Attribute
+// ändern sich ständig und werden zwischen Produkten geteilt (z. B. enthalten
+// VS-Code-Ableger Copilot-Klassen). Wir benennen nur, was eindeutig ist.
+const KI_CHAT = "KI-Chat-Oberfläche";
 const REGELN: Regel[] = [
-  // KI-Chats im Browser
-  { feld: "html", re: /data-start="\d+"[^>]*data-end="\d+"|data-message-author-role|class="[^"]*markdown prose/i, quelle: "ChatGPT", hinweis: "ChatGPT-Attribute (data-start/data-end)", schwere: "hoch" },
-  { feld: "html", re: /font-claude|claude-response|data-is-streaming|class="[^"]*font-(?:user|claude)-message/i, quelle: "Claude", hinweis: "Claude-Oberflächenklassen", schwere: "hoch" },
-  { feld: "html", re: /model-response|message-content[^"]*gemini|class="[^"]*markdown-main-panel|response-container/i, quelle: "Gemini", hinweis: "Gemini-Oberflächenklassen", schwere: "hoch" },
-  { feld: "html", re: /perplexity|class="[^"]*prose[^"]*dark:prose-invert/i, quelle: "Perplexity / KI-Chat", hinweis: "Oberflächenklassen eines KI-Chats", schwere: "hoch" },
-  { feld: "html", re: /copilot|cib-serp|sydney/i, quelle: "Microsoft Copilot", hinweis: "Copilot-Oberflächenklassen", schwere: "hoch" },
-  // Code-Editoren (VS Code, Antigravity, Cursor, Windsurf …)
-  { feld: "typen", re: /vscode-editor-data|code-editor|monaco/i, quelle: "Code-Editor (VS-Code-basiert, z. B. Antigravity, Cursor)", hinweis: "Editor-eigenes Zwischenablage-Format", schwere: "hoch" },
-  { feld: "html", re: /font-family:\s*(?:Menlo|Consolas|'?Droid Sans Mono|'?Cascadia|'?JetBrains|'?Fira Code)[^;]*;[^"]*white-space:\s*pre/i, quelle: "Code-Editor (VS-Code-basiert, z. B. Antigravity, Cursor)", hinweis: "Editor-Formatierung (Monospace, white-space: pre)", schwere: "hoch" },
+  // Code-Editoren zuerst: deren HTML enthält oft Klassen anderer KI-Produkte
+  { feld: "typen", re: /vscode-editor-data|code-editor|monaco/i, quelle: "Code-Editor (VS-Code-basiert)", hinweis: "Editor-eigenes Zwischenablage-Format", schwere: "hoch" },
+  { feld: "html", re: /font-family:\s*(?:Menlo|Consolas|'?Droid Sans Mono|'?Cascadia|'?JetBrains|'?Fira Code)[^;]*;[^"]*white-space:\s*pre/i, quelle: "Code-Editor (VS-Code-basiert)", hinweis: "Editor-Formatierung (Monospace, white-space: pre)", schwere: "hoch" },
+  // KI-Chats im Browser — Merkmale ohne Produktzuordnung
+  { feld: "html", re: /data-start="\d+"[^>]*data-end="\d+"|data-message-author-role|data-is-streaming|font-claude|claude-response|model-response|markdown-main-panel|response-container|class="[^"]*markdown prose/i, quelle: KI_CHAT, hinweis: "Attribute/Klassen einer KI-Chat-Antwort", schwere: "hoch" },
+  { feld: "html", re: /class="[^"]*\b(?:prose|whitespace-pre-wrap|break-words)\b/i, quelle: KI_CHAT, hinweis: "Tailwind-Klassen typischer Chat-Oberflächen", schwere: "hoch" },
   // Office
   { feld: "html", re: /urn:schemas-microsoft-com:office:(?:word|office)|class="?Mso|mso-[a-z-]+:|WordSection1/i, quelle: "Microsoft Word / Outlook", hinweis: "Word-Format (Outlook schreibt Mails ebenfalls im Word-Format)", schwere: "info" },
   { feld: "rtf", re: /\\generator Microsoft Word|\\\*\\generator Msftedit|\\mmathPr/i, quelle: "Microsoft Word / Outlook", hinweis: "Word-RTF", schwere: "info" },
   { feld: "html", re: /docs-internal-guid/i, quelle: "Google Docs", hinweis: "Google-Docs-Kennung", schwere: "info" },
   { feld: "html", re: /<meta name="?generator"? content="?LibreOffice/i, quelle: "LibreOffice", hinweis: "LibreOffice-Generator", schwere: "info" },
-  // Apps mit System-Oberflächenschrift (Text aus einer App-Oberfläche, nicht aus einem Dokument)
-  { feld: "rtf", re: /\.AppleSystemUIFont|\.SFNS|\.SF NS|SFPro/i, quelle: "macOS-App-Oberfläche (z. B. ChatGPT-App, Nachrichten)", hinweis: "RTF mit System-Oberflächenschrift", schwere: "mittel" },
+  // Text aus einer App-Oberfläche statt aus einem Dokument
+  { feld: "rtf", re: /\.AppleSystemUIFont|\.SFNS|\.SF NS|SFPro/i, quelle: "App-Oberfläche (macOS)", hinweis: "RTF mit System-Oberflächenschrift — kopiert aus einer App, nicht aus einem Dokument", schwere: "mittel" },
   { feld: "html", re: /font-family:\s*(?:-apple-system|system-ui|ui-sans-serif|BlinkMacSystemFont|"?Segoe UI Variable)/i, quelle: "App- oder Web-Oberfläche", hinweis: "System-Oberflächenschrift", schwere: "mittel" },
-  { feld: "html", re: /class="[^"]*\b(?:prose|whitespace-pre-wrap|break-words)\b/i, quelle: "KI-Chat / Web-App", hinweis: "Tailwind-Klassen einer Chat-Oberfläche", schwere: "mittel" },
   { feld: "rtf", re: /\\cocoartf/i, quelle: "macOS-Programm", hinweis: "Cocoa-RTF (TextEdit, Notizen, Mail, Apps)", schwere: "info" },
   { feld: "html", re: /<a\s[^>]*href="https?:/i, quelle: "Webseite", hinweis: "Hyperlinks", schwere: "info" },
 ];
