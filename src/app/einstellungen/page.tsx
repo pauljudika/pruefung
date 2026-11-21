@@ -39,7 +39,7 @@ export default function EinstellungenPage() {
                 <tbody className="divide-y divide-gray-100">
                   <tr className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-900">Prof. Dr. Stefan Storr</div>
+                      <div className="font-semibold text-gray-900">Dr. Max Muster</div>
                       <div className="text-xs text-gray-500 mt-0.5">Institutsleitung / Freigeber</div>
                     </td>
                     <td className="px-4 py-4 text-center">
@@ -160,14 +160,14 @@ export default function EinstellungenPage() {
             <tbody className="divide-y divide-gray-100 font-mono text-xs">
               <tr className="hover:bg-gray-50 text-gray-600">
                 <td className="px-6 py-3">2026-09-21 11:42:15</td>
-                <td className="px-4 py-3">Prof. Dr. Storr</td>
+                <td className="px-4 py-3">Dr. Muster</td>
                 <td className="px-4 py-3"><span className="text-green-600 font-bold">FREIGABE</span></td>
                 <td className="px-4 py-3">Freigabe für Prüfung 'Bürgerliches Recht I' (ID: PR-0926) erteilt.</td>
                 <td className="px-6 py-3 text-right text-gray-400">0x8f2a...9c1b</td>
               </tr>
               <tr className="hover:bg-gray-50 text-gray-600">
                 <td className="px-6 py-3">2026-09-21 11:38:22</td>
-                <td className="px-4 py-3">Prof. Dr. Storr</td>
+                <td className="px-4 py-3">Dr. Muster</td>
                 <td className="px-4 py-3"><span className="text-yellow-600 font-bold">PUNKTE_AENDERUNG</span></td>
                 <td className="px-4 py-3">Arbeit P-0142, Frage 1, Prüfpunkt 3: Wert von 0 auf 2 geändert. Kommentar: "Doch vertretbar".</td>
                 <td className="px-6 py-3 text-right text-gray-400">0x3e11...4a9f</td>

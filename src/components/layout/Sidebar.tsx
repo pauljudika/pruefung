@@ -70,7 +70,7 @@ export function Sidebar() {
         </Link>
         <div className="mt-4 px-3 text-xs text-gray-400">
           Angemeldet als:<br/>
-          <span className="font-semibold text-white">Prof. Dr. Storr</span>
+          <span className="font-semibold text-white">Dr. Muster</span>
         </div>
       </div>
     </div>

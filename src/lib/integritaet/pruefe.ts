@@ -162,7 +162,7 @@ function saetze(t: string): string[] {
 
 type Pruefung = (text: string, modus: Modus) => Fund[];
 
-const pruefeUnsichtbar: Pruefung = (text) => {
+const pruefeUnsichtbar: Pruefung = (text, modus) => {
   const funde: Fund[] = [];
 
   // Nullbreiten-Zeichen (BOM ganz am Anfang ist harmlos)
@@ -241,10 +241,10 @@ const pruefeUnsichtbar: Pruefung = (text) => {
     funde.push({
       id: "nnbsp",
       kategorie: "wasserzeichen",
-      schwere: "mittel",
+      schwere: "info",
       titel: `${nnbsp.length}× schmales geschütztes Leerzeichen (U+202F)`,
       detail:
-        "Sieht aus wie ein normales Leerzeichen, lässt sich aber über die Tastatur praktisch nicht eingeben. Es taucht u. a. in Ausgaben einiger KI-Modelle auf (z. B. in „z. B.“ oder zwischen Zahl und Einheit).",
+        "Sieht aus wie ein normales Leerzeichen, lässt sich aber über die Tastatur praktisch nicht eingeben. Es taucht u. a. in Ausgaben einiger KI-Modelle auf (z. B. in „z. B.“). Weil es auch in sorgfältig gesetzten Texten vorkommt, nur ein Hinweis.",
       stellen: nnbsp,
     });
   }
@@ -255,7 +255,7 @@ const pruefeUnsichtbar: Pruefung = (text) => {
     funde.push({
       id: "unicode-bindestrich",
       kategorie: "wasserzeichen",
-      schwere: "mittel",
+      schwere: modus === "online" ? "mittel" : "info",
       titel: `${binde.length}× Unicode-Bindestrich (U+2011/U+2010)`,
       detail:
         "Sieht aus wie ein normaler Bindestrich, ist aber ein Sonderzeichen, das sich über die Tastatur nicht eingeben lässt. Es taucht u. a. in Ausgaben aktueller ChatGPT-Modelle auf (z. B. „KI‑Modell“, „E‑Mail“).",
@@ -559,18 +559,9 @@ const pruefePaste: Pruefung = (text, modus) => {
     });
   }
 
-  // Geschützte Leerzeichen
-  const nbsp = alle(text, / /);
-  if (nbsp.length >= 3) {
-    funde.push({
-      id: "nbsp",
-      kategorie: "paste",
-      schwere: modus === "online" ? "mittel" : "info",
-      titel: `${nbsp.length} geschützte Leerzeichen`,
-      detail: "Geschützte Leerzeichen kommen meist aus Word oder Webseiten. Einzelne können auch versehentlich getippt werden (Mac: Alt+Leertaste).",
-      stellen: nbsp,
-    });
-  }
+  // Geschützte Leerzeichen (U+00A0) sind KEIN Indiz: In juristischen Texten
+  // stehen sie regelmäßig, etwa in „§ 1295“ oder „Abs 1“ (Hinweis REWI).
+
 
   // Typografie: im Web-Formular tippt niemand „…“ — in Word zählt die Mischung
   const typo = {
@@ -585,7 +576,9 @@ const pruefePaste: Pruefung = (text, modus) => {
   };
 
   if (modus === "online") {
-    const typStellen = [...typo.anf, ...typo.apostTyp, ...typo.halbgeviert, ...typo.ellipse];
+    const bisStrich = alle(text, /\d–\d|\p{L}–\p{L}/u);
+    const sonder = alle(text, /[×≈≤≥±·]/);
+    const typStellen = [...typo.anf, ...typo.apostTyp, ...typo.halbgeviert, ...typo.ellipse, ...bisStrich, ...sonder];
     if (typStellen.length >= 2) {
       funde.push({
         id: "typografie-online",
@@ -593,7 +586,7 @@ const pruefePaste: Pruefung = (text, modus) => {
         schwere: "mittel",
         titel: `${typStellen.length} typografische Zeichen in Formular-Eingabe`,
         detail:
-          "In einem Web-Formular wie Moodle entstehen beim Tippen nur gerade Anführungszeichen (\") und Bindestriche (-). „Gänsefüßchen“, Halbgeviertstriche (–) oder das Auslassungszeichen (…) kommen aus Word, PDFs oder KI-Texten. Ausnahme: Smartphones und manche Mac-Einstellungen ersetzen automatisch.",
+          "In einem Web-Formular wie Moodle entstehen beim Tippen nur gerade Anführungszeichen (\") und Bindestriche (-). „Gänsefüßchen“, Halbgeviertstriche (– und „12–15“), Malzeichen (×) oder das Auslassungszeichen (…) kommen aus Word, PDFs oder KI-Texten. Ausnahme: Smartphones und manche Mac-Einstellungen ersetzen automatisch.",
         stellen: typStellen,
       });
     }
@@ -914,8 +907,14 @@ const PRUEFUNGEN: Pruefung[] = [pruefeUnsichtbar, pruefeVerschleierung, pruefeMa
 
 const GEWICHT: Record<Schwere, number> = { info: 0, mittel: 1, hoch: 3 };
 
+// Schwache Hinweise, die für sich allein nichts bedeuten, gemeinsam aber auf
+// eine eingefügte Chat-Antwort deuten. Typografische Leerzeichen zählen nicht.
+const SCHWACHE_KI_HINWEISE = new Set(["chat-gliederung", "floskeln", "uebergaenge", "burstiness", "ueberschriften", "geviertstrich", "emoji", "zwischenablage", "unicode-bindestrich"]);
+
 export function bewerte(funde: Fund[]): { ampel: Ampel; punkte: number } {
-  const punkte = funde.reduce((a, f) => a + GEWICHT[f.schwere], 0);
+  let punkte = funde.reduce((a, f) => a + GEWICHT[f.schwere], 0);
+  const schwach = funde.filter((f) => f.schwere === "info" && SCHWACHE_KI_HINWEISE.has(f.id));
+  if (schwach.length >= 2) punkte += schwach.length >= 3 ? 2 : 1;
   const ampel: Ampel = funde.some((f) => f.schwere === "hoch") || punkte >= 4 ? "rot" : punkte >= 1 ? "gelb" : "gruen";
   return { ampel, punkte };
 }

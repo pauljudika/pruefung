@@ -265,3 +265,41 @@ test("Zwischenablage: keine Produktnamen raten (Copilot-Klassen im Editor)", () 
   assert.match(h.quelle, /Code-Editor/);
   assert.doesNotMatch(JSON.stringify(h), /Copilot|ChatGPT|Gemini|Claude/);
 });
+
+// ───────── Fälle aus Pauls Tests (21.11.) ─────────
+import { fundAusHerkunft } from "../src/lib/integritaet/zwischenablage.ts";
+
+test("Chat-Antwort aus Desktop-App (Screenshot 21.11.) wird nicht grün", () => {
+  const t = `Danke an Lilith, damit wird die Rechnung deutlich belastbarer.
+
+Neues Mengengerüst fürs REWI
+
+Prüfungstermine: 12–15 Prüfungen × 6 Termine = 72–90 Termine im Jahr, also 6–8 pro Monat.
+
+Arbeiten pro Jahr, von zwei Seiten gerechnet:
+
+Pro Termin: 100–300 Antretende × 6 × 13,5 Fächer ergäbe 8.000–24.000.
+Pro Jahrgang: Jedes Fach schreiben pro Jahr ungefähr alle Studierenden eines Jahrgangs, mal 1,15 Antritte.
+
+Beides zusammen ergibt realistisch 10.000–12.000 Arbeiten im Jahr.`;
+  const html = "<p>Danke</p><p><strong>Neues Mengengerüst</strong></p><ul><li><strong>Prüfungstermine:</strong> 12–15</li><li><strong>Pro Termin:</strong></li><li><strong>Pro Jahrgang:</strong></li></ul><p><strong>x</strong></p>";
+  const h = herkunftBestimmen({ typen: ["text/plain", "text/html"], daten: { "text/html": html } });
+  assert.equal(h.schwere, "mittel");
+  const e = pruefeText(t, { zusatzFunde: fundAusHerkunft(h) });
+  assert.notEqual(e.ampel, "gruen", JSON.stringify(e.funde.map((f) => [f.id, f.schwere])));
+  assert.ok(ids(e).includes("typografie-online"));
+  // Auch ganz ohne Zwischenablage: Bis-Striche und × verraten den Text
+  assert.notEqual(pruefeText(t).ampel, "gruen");
+});
+
+test("Geschützte Leerzeichen in juristischen Texten sind kein Indiz", () => {
+  const t = "Gemäß § 1295 Abs 1 ABGB haftet, wer schuldhaft schädigt. Vgl § 1294 ABGB und § 1297 ABGB sowie Art 7 B-VG.";
+  const e = pruefeText(t, { modus: "word" });
+  assert.equal(e.ampel, "gruen", JSON.stringify(e.funde.map((f) => f.id)));
+  assert.equal(pruefeText(t).ampel, "gruen");
+});
+
+test("Geschützter Bindestrich aus Word ist nur Hinweis", () => {
+  const e = pruefeText("Die Haftungs‑ und Schadensfrage ist zu prüfen.", { modus: "word" });
+  assert.equal(e.funde.find((f) => f.id === "unicode-bindestrich").schwere, "info");
+});

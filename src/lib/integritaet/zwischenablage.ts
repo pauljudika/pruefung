@@ -86,6 +86,11 @@ export function herkunftBestimmen(z: Zwischenablage | null): Herkunft | null {
   const struktur = (html.match(/<(?:strong|b|h[1-6]|li)\b/gi) ?? []).length;
   if (struktur >= 3) hinweise.push(`${struktur} Struktur-Elemente (Überschriften/Fett/Listen) in der HTML-Fassung`);
 
+  // Strukturierter Text ohne Kennung eines Textprogramms: typisch für Antworten aus
+  // Chat-Apps (Desktop-Apps liefern oft schlichtes HTML ohne verräterische Klassen)
+  if (!quelle && struktur >= 3) {
+    return { quelle: "Formatierte Antwort aus App oder Web", schwere: "mittel", hinweise: [...hinweise, "Überschriften/Fettdruck/Listen ohne Kennung eines Textprogramms — typisch für kopierte Chat-Antworten"] };
+  }
   return { quelle: quelle ?? "Formatierter Text (Web/Programm)", schwere, hinweise };
 }
 
