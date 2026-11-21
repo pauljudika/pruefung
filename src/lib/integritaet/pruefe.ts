@@ -921,9 +921,50 @@ export function bewerte(funde: Fund[]): { ampel: Ampel; punkte: number } {
 
 const SCHWERE_RANG: Record<Schwere, number> = { hoch: 0, mittel: 1, info: 2 };
 
-export function pruefeText(text: string, optionen: { modus?: Modus; zusatzFunde?: Fund[] } = {}): Ergebnis {
+// Funde, die belegen, dass Text aus einer anderen Quelle eingefügt wurde.
+// Typografie allein gehört NICHT dazu: Manche Geräte ersetzen Anführungszeichen
+// automatisch, das wäre für ein automatisches "Rot" zu unsicher.
+const EINFUEGE_BELEGE: Record<string, string> = {
+  zwischenablage: "mitkopierte Formatierung",
+  html: "HTML-Tags",
+  entities: "HTML-Entities",
+  markdown: "Markdown-Formatierung",
+  "ki-zitate": "Zitier-Marker aus KI-Chats",
+  latex: "LaTeX-Fragmente",
+  ligaturen: "PDF-Ligaturen",
+  pua: "PDF-Sonderzeichen",
+  silbentrennung: "Silbentrennung aus PDF",
+  umbrueche: "Zeilenumbrüche aus PDF",
+  bullets: "kopierte Aufzählungszeichen",
+  "docx-webschrift": "Web-Schriftart",
+  "docx-hintergrund": "Hintergrundfarbe aus Web",
+  "docx-mono": "Code-Schrift",
+  "docx-schriftmix": "abweichende Schriftart",
+};
+
+export type Optionen = {
+  modus?: Modus;
+  zusatzFunde?: Fund[];
+  /** Prüfungsregel: Material von außen darf nicht eingefügt werden (Closed Book). */
+  externVerboten?: boolean;
+};
+
+export function pruefeText(text: string, optionen: Optionen = {}): Ergebnis {
   const modus = optionen.modus ?? "online";
   const funde = [...PRUEFUNGEN.flatMap((p) => p(text, modus)), ...(optionen.zusatzFunde ?? [])];
+  if (optionen.externVerboten) {
+    const belege = funde.filter((f) => EINFUEGE_BELEGE[f.id] && f.schwere !== "info");
+    if (belege.length) {
+      funde.push({
+        id: "regelverstoss",
+        kategorie: "paste",
+        schwere: "hoch",
+        titel: "Eingefügter Text trotz Verbot externer Quellen",
+        detail: `Laut Prüfungsregel darf kein Material von außen eingefügt werden. Der Text zeigt Spuren einer anderen Quelle: ${[...new Set(belege.map((f) => EINFUEGE_BELEGE[f.id]))].join(", ")}. Wer selbst tippt, erzeugt diese Spuren nicht.`,
+        stellen: belege.flatMap((f) => f.stellen),
+      });
+    }
+  }
   funde.sort((a, b) => SCHWERE_RANG[a.schwere] - SCHWERE_RANG[b.schwere]);
   for (const f of funde) {
     if (!f.belege && f.stellen.length) f.belege = [...new Set(f.stellen.slice(0, 6).map((s) => ausschnitt(text, s)))].slice(0, 3);

@@ -24,7 +24,7 @@ Bezüglich der Rechtswidrigkeit ist festzustellen, dass A gegen absolute Rechte 
 
 Hinsichtlich des Verschuldens ist fraglich, ob A vorsätzlich gehandelt hat. Da er nur rannte, liegt wohl keine Absicht vor. Somit scheidet Verschulden aus und es besteht kein Anspruch.`;
   }, []);
-  const analyse = useMemo(() => pruefeText(abgabe), [abgabe]);
+  const analyse = useMemo(() => pruefeText(abgabe, { externVerboten: true }), [abgabe]);
 
   // Mock data for the review
   const mockAnswer = `Der Anspruch auf Schadenersatz könnte sich aus § 1295 Abs 1 ABGB ergeben. 

@@ -209,6 +209,7 @@ function datum(iso?: string): string {
 export default function PruefenPage() {
   const [text, setText] = useState("");
   const [modus, setModus] = useState<Modus>("online");
+  const [externVerboten, setExternVerboten] = useState(true);
   const [docx, setDocx] = useState<Dokument | null>(null);
   const [ablage, setAblage] = useState<Zwischenablage | null>(null);
   const herkunft = useMemo(() => herkunftBestimmen(ablage), [ablage]);
@@ -220,8 +221,8 @@ export default function PruefenPage() {
 
   const ergebnis = useMemo(() => {
     if (!text.trim()) return null;
-    return pruefeText(text, { modus, zusatzFunde: [...(docx?.funde ?? []), ...fundAusHerkunft(herkunft)] });
-  }, [text, modus, docx, herkunft]);
+    return pruefeText(text, { modus, externVerboten, zusatzFunde: [...(docx?.funde ?? []), ...fundAusHerkunft(herkunft)] });
+  }, [text, modus, docx, herkunft, externVerboten]);
 
   function neu(t: string, m: Modus) {
     setText(t);
@@ -343,6 +344,10 @@ export default function PruefenPage() {
           {" · "}
           <a href="/beispiele/abgabe-beispiel.pdf" download className="underline hover:text-uniblack">PDF</a>
         </span>
+        <label className="flex items-center gap-2 text-sm cursor-pointer" title="Closed Book: Jedes eingefügte Fremdmaterial wird als Regelverstoß (rot) gewertet.">
+          <input type="checkbox" checked={externVerboten} onChange={(e) => setExternVerboten(e.target.checked)} className="accent-black w-4 h-4" />
+          Externe Quellen verboten
+        </label>
         <div className="ml-auto flex items-center gap-2 text-sm">
           <span className="text-gray-500">Herkunft des Textes:</span>
           <div className="flex rounded-lg border border-gray-300 overflow-hidden">

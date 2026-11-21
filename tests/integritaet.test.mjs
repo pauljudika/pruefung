@@ -303,3 +303,12 @@ test("Geschützter Bindestrich aus Word ist nur Hinweis", () => {
   const e = pruefeText("Die Haftungs‑ und Schadensfrage ist zu prüfen.", { modus: "word" });
   assert.equal(e.funde.find((f) => f.id === "unicode-bindestrich").schwere, "info");
 });
+
+test("Externe Quellen verboten: Einfüge-Beleg macht rot, Typografie allein nicht", () => {
+  const pdf = "Rechtswidrig ist ein Verhalten, wenn es gegen Ver-\nbote verstößt. Die Verpﬂichtung besteht.";
+  assert.ok(ids(pruefeText(pdf, { externVerboten: true })).includes("regelverstoss"));
+  assert.equal(pruefeText(pdf, { externVerboten: true }).ampel, "rot");
+  const typo = "Er sagte „nein“ und ging – ohne Gruß.";
+  assert.ok(!ids(pruefeText(typo, { externVerboten: true })).includes("regelverstoss"));
+  assert.ok(!ids(pruefeText(pdf)).includes("regelverstoss"));
+});
