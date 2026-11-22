@@ -29,6 +29,9 @@ const REGELN: Regel[] = [
   // KI-Chats im Browser — Merkmale ohne Produktzuordnung
   { feld: "html", re: /data-start="\d+"[^>]*data-end="\d+"|data-message-author-role|data-is-streaming|font-claude|claude-response|model-response|markdown-main-panel|response-container|class="[^"]*markdown prose/i, quelle: KI_CHAT, hinweis: "Attribute/Klassen einer KI-Chat-Antwort", schwere: "hoch" },
   { feld: "html", re: /class="[^"]*\b(?:prose|whitespace-pre-wrap|break-words)\b/i, quelle: KI_CHAT, hinweis: "Tailwind-Klassen typischer Chat-Oberflächen", schwere: "hoch" },
+  // Chat- und Messenger-Apps mit dem Editor „texty“: Slack und – beobachtet am 22.11.2026 – die ChatGPT-/Codex-Desktop-App.
+  // Deren HTML trägt keine verräterischen Klassen; das Zusatzformat der Zwischenablage ist die einzige Spur.
+  { feld: "typen", re: /slack\/texty/i, quelle: "Chat-App (Editorformat „texty“: u. a. ChatGPT-/Codex-App, Slack)", hinweis: "Zwischenablage-Format einer Chat-Anwendung", schwere: "mittel" },
   // Office
   { feld: "html", re: /urn:schemas-microsoft-com:office:(?:word|office)|class="?Mso|mso-[a-z-]+:|WordSection1/i, quelle: "Microsoft Word / Outlook", hinweis: "Word-Format (Outlook schreibt Mails ebenfalls im Word-Format)", schwere: "info" },
   { feld: "rtf", re: /\\generator Microsoft Word|\\\*\\generator Msftedit|\\mmathPr/i, quelle: "Microsoft Word / Outlook", hinweis: "Word-RTF", schwere: "info" },
@@ -95,7 +98,19 @@ export function herkunftBestimmen(z: Zwischenablage | null): Herkunft | null {
 }
 
 export function fundAusHerkunft(h: Herkunft | null): Fund[] {
-  if (!h || h.quelle === "Nur Klartext") return [];
+  if (!h) return [];
+  // Auch ein Einfügen ohne jede Formatierung ist ein Einfügen: für sich unauffällig, unter der Regel
+  // „Externe Quellen verboten“ aber ein Beleg (eigene Kennung, damit es die übrige Bewertung nicht verschiebt).
+  if (h.quelle === "Nur Klartext") {
+    return [{
+      id: "eingefuegt",
+      kategorie: "paste",
+      schwere: "info",
+      titel: "Text wurde eingefügt, nicht getippt (nur Klartext)",
+      detail: "Der Text kam über die Zwischenablage, ohne Formatierung – typisch für Apps, Terminals, PDF-Reader und Kopier-Schaltflächen. Die Quelle lässt sich daraus nicht bestimmen. Hinweis: Das beschreibt, was SIE gerade eingefügt haben.",
+      stellen: [],
+    }];
+  }
   return [
     {
       id: "zwischenablage",

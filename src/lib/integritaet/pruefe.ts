@@ -926,6 +926,7 @@ const SCHWERE_RANG: Record<Schwere, number> = { hoch: 0, mittel: 1, info: 2 };
 // automatisch, das wäre für ein automatisches "Rot" zu unsicher.
 const EINFUEGE_BELEGE: Record<string, string> = {
   zwischenablage: "mitkopierte Formatierung",
+  eingefuegt: "über die Zwischenablage eingefügt",
   html: "HTML-Tags",
   entities: "HTML-Entities",
   markdown: "Markdown-Formatierung",
@@ -953,7 +954,10 @@ export function pruefeText(text: string, optionen: Optionen = {}): Ergebnis {
   const modus = optionen.modus ?? "online";
   const funde = [...PRUEFUNGEN.flatMap((p) => p(text, modus)), ...(optionen.zusatzFunde ?? [])];
   if (optionen.externVerboten) {
-    const belege = funde.filter((f) => EINFUEGE_BELEGE[f.id] && f.schwere !== "info");
+    // Ein beobachtetes Einfügen zählt immer, gleich aus welcher Quelle und wie unauffällig (22.11.2026: Text aus einer
+    // Chat-App blieb grün, weil die unbekannte Quelle nur als „info“ eingestuft war). Bei Spuren im Text selbst bleibt
+    // es bei mittel/hoch – schwache Textspuren allein sollen kein automatisches Rot auslösen.
+    const belege = funde.filter((f) => EINFUEGE_BELEGE[f.id] && (f.schwere !== "info" || f.id === "zwischenablage" || f.id === "eingefuegt"));
     if (belege.length) {
       funde.push({
         id: "regelverstoss",

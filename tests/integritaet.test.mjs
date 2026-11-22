@@ -312,3 +312,27 @@ test("Externe Quellen verboten: Einfüge-Beleg macht rot, Typografie allein nich
   assert.ok(!ids(pruefeText(typo, { externVerboten: true })).includes("regelverstoss"));
   assert.ok(!ids(pruefeText(pdf)).includes("regelverstoss"));
 });
+
+// ───────── Fall vom 22.11.: Text aus der Codex-/ChatGPT-App blieb trotz „Externe Quellen verboten“ grün ─────────
+test("Externe Quellen verboten: jedes beobachtete Einfügen macht rot, auch aus unbekannter Quelle und als Klartext", () => {
+  const t = "Ja, die beiden Loops habe ich gesehen. Die detaillierte Gestaltung würde ich nach dem Gespräch ausarbeiten. Dafür braucht es vor allem ihre Auswahl der Fassaden.";
+  // Chat-App mit Editorformat „texty“
+  const app = herkunftBestimmen({ typen: ["text/plain", "text/html", "slack/texty"], daten: { "text/html": "<p>Ja, die beiden Loops habe ich gesehen.</p>" } });
+  assert.match(app.quelle, /Chat-App/);
+  assert.equal(app.schwere, "mittel");
+  assert.equal(pruefeText(t, { externVerboten: true, zusatzFunde: fundAusHerkunft(app) }).ampel, "rot");
+  assert.notEqual(pruefeText(t, { zusatzFunde: fundAusHerkunft(app) }).ampel, "rot");
+  // gänzlich unbekannte Quelle mit Formatierung (bisher „info“ und damit grün)
+  const unbekannt = herkunftBestimmen({ typen: ["text/plain", "text/html"], daten: { "text/html": "<span>Ja, die beiden Loops</span>" } });
+  assert.equal(unbekannt.schwere, "info");
+  const e = pruefeText(t, { externVerboten: true, zusatzFunde: fundAusHerkunft(unbekannt) });
+  assert.equal(e.ampel, "rot");
+  assert.ok(ids(e).includes("regelverstoss"));
+  // nur Klartext
+  const klar = fundAusHerkunft(herkunftBestimmen({ typen: ["text/plain"], daten: {} }));
+  assert.equal(klar[0].id, "eingefuegt");
+  assert.equal(pruefeText(t, { externVerboten: true, zusatzFunde: klar }).ampel, "rot");
+  assert.equal(pruefeText(t, { zusatzFunde: klar }).ampel, "gruen");
+  // getippt (kein Einfügen beobachtet): bleibt grün, auch mit der Regel
+  assert.equal(pruefeText(t, { externVerboten: true }).ampel, "gruen");
+});
