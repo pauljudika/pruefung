@@ -366,7 +366,7 @@ const pruefeMarkup: Pruefung = (text) => {
     ...alle(text, /^#{1,6} \S.*$/m),
     ...alle(text, /^```[\s\S]*?^```/m),
     ...alle(text, /\[[^\]\n]{1,100}\]\((?:https?:\/\/|www\.)[^)\s]+\)/),
-    ...alle(text, /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/m),
+    ...alle(text, /^[ \t]*(?:\|[ \t]*)?:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$/m),   // [ \t] statt \s und kein doppeltes Leerraum-Stück: sonst quadratische Laufzeit bei langen Leerzeichenfolgen (22.11.2026)
   ];
   if (md.length) {
     funde.push({
